@@ -1,0 +1,22 @@
+(in-package :cl-quantum)
+
+(deftype uint32 () '(unsigned-byte 32))
+
+(deftype int32 () '(signed-byte 32))
+
+(deftype uint16 () '(unsigned-byte 16))
+
+(deftype int16 () '(signed-byte 16))
+
+(deftype uint8 () '(unsigned-byte 8))
+
+(deftype int8 () '(signed-byte 8))
+
+(deftype matrix (&optional type x y)
+  `(array ,type (,x ,y)))
+
+(deftype square-matrix (&optional type x)
+  `(array ,type (,x ,x)))
+
+(deftype quantum-register ()
+  )

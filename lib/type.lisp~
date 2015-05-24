@@ -1,0 +1,40 @@
+;;;; Generic useful type information
+;;;; Author: Augustus Huang
+;;;; Date: May 22, 2015
+
+(in-package :general-utilities)
+
+(deftype uint () '(integer 0 *))
+
+(deftype amplitude () '(real 0 1))
+
+(deftype angle () '(real #.pi #.(- pi)))
+
+(deftype matrix (&optional type x y)
+  `(array ,type (,x ,y)))
+
+(deftype square-matrix (&optional type x)
+  `(array ,type (,x ,x)))
+
+(defstruct quantum-register
+  "Quantum register, with 'width' qubits and 'l0-norm' non-zero basis states."
+  (width 0 :type uint)
+  (l0-norm 0 :type uint)
+  (amplitude #(1) :type (vector amplitude))
+  (pure-states #(0) :type (vector uint)))
+
+(defun unitary-matrix-p (matrix)
+  "Predicate of unitary matrix."
+  )
+
+(defun identity-matrix-p (matrix)
+  "Predicate of identity matrix."
+  )
+
+(defun trace-zero-p (matrix)
+  "Predicate of zero trace matrix."
+  )
+
+(defun rank-full-p (matrix)
+  "Predicate of full-rank matrix."
+  )
