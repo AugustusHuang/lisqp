@@ -102,7 +102,7 @@
 	      ,vector :start start :end end)))
 
 (defun transpose (matrix)
-  "Returns transposition a given matrix."
+  "Returns the transposition of a given matrix."
   (declare (type matrix matrix))
   (let* ((row (first (array-dimensions matrix)))
 	 (column (second (array-dimensions matrix)))
@@ -112,6 +112,23 @@
 	      (setf (aref out j i)
 		    (aref matrix i j))))
     out))
+
+(defun conjugate (matrix)
+  "Returns the conjugation of a given matrix."
+  (declare (type matrix matrix))
+  (let* ((row (first (array-dimensions matrix)))
+	 (column (second (array-dimensions matrix)))
+	 (out (make-array '(,row ,column) :initial-element 0)))
+    (loop for i from 0 to (- row 1) do
+	 (loop for j from 0 to (- column 1) do
+	      (setf (aref out i j)
+		    (conjugate (aref matrix i j)))))
+    out))
+
+(defun adjoint (matrix)
+  "Returns the adjoint of a given matrix."
+  (declare (type matrix matrix))
+  (funcall conjugate (funcall transpose matrix)))
 
 (defun matrix-* (matrix1 &rest more-matrices)
   "Returns product of matrices, from left to right."

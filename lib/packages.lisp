@@ -8,6 +8,8 @@
   (:export :dovec
 	   :with-gensyms
 	   :transpose
+	   :conjugate
+	   :adjoint
 	   :matrix-*
 	   :matrix-+
 	   :matrix--))

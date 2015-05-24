@@ -4,16 +4,24 @@
 
 (in-package :general-utilities)
 
-(deftype uint () '(integer 0 *))
+(deftype uint ()
+  "Unsigned integer."
+  '(integer 0 *))
 
-(deftype amplitude () '(real 0 1))
+(deftype amplitude ()
+  "Amplitude of a state will lie between 0 and 1."
+  '(real 0 1))
 
-(deftype angle () '(real #.pi #.(- pi)))
+(deftype angle ()
+  "Bloch sphere angle."
+  '(real #.pi #.(- pi)))
 
 (deftype matrix (&optional type x y)
+  "General 2D array."
   `(array ,type (,x ,y)))
 
 (deftype square-matrix (&optional type x)
+  "2D array with equal dimensions."
   `(array ,type (,x ,x)))
 
 (defstruct quantum-register
@@ -26,7 +34,9 @@
 (defun unitary-matrix-p (m)
   "Predicate of unitary matrix."
   (declare (type square-matrix m))
-  )
+  (if (identity-matrix-p (matrix-* (adjoint m) m))
+      t
+      nil))
 
 (defun identity-matrix-p (m)
   "Predicate of identity matrix."
@@ -52,3 +62,10 @@
   "Predicate of full-rank matrix."
   (declare (type matrix m))
   )
+
+(defun hermitian-p (m)
+  "Predicate of Hermitian matrix."
+  (declare (type square-matrix m))
+  (if (= (adjoint m) m)
+      t
+      nil))
