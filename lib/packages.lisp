@@ -37,12 +37,15 @@
 (defpackage :cl-quantum-emulator
   (:nicknames :quantum-emulator :qemulator)
   (:use :cl :cl-quantum :general-utilities)
-  (:export :emulator))
+  (:export :emulator
+	   :q+
+	   :q+mod
+	   :q*mod
+	   :q-expr-mod))
 
 (defpackage :cl-lisqp
   (:nicknames :lisqp)
   (:use :cl :cl-quantum :cl-quantum-emulator :general-utilities)
   (:export :lexer
-	   :parser
 	   :back-end
 	   :top-level))

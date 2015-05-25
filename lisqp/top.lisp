@@ -1,10 +1,10 @@
 ;;;; LISQP interpreter top-level routines and utilities.
-;;;; Augustus Huang
-;;;; May 22, 2015
+;;;; Author: Augustus Huang
+;;;; Date: May 22, 2015
 
 (in-package :cl-lisqp)
 
-;;; API
+;;; APIs
 ;;; When running with default arguments, this interpreter will act like a
 ;;; normal LISP interpreter, with ordinary read-eval-print loop, when
 ;;; eval is replaced by q-eval, it will be turned into a lisqp repl.
