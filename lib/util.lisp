@@ -144,3 +144,7 @@
   "Returns m1 - (m2 + .. + mn)."
   (declare (type matrix matrix1))
   (reduce #'matrix---2 (cons matrix1 more-matrices)))
+
+(defun qubits (num)
+  "Get number of qubits (and amount of superfluous) to represent 'num'."
+  (ceiling (log num 2)))

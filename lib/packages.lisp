@@ -18,11 +18,14 @@
   (:nicknames :quantum :cl-qu)
   (:use :cl :general-utilities)
   (:export :c-not
+	   :c-not-ec
 	   :hadamard
 	   :toffoli
+	   :toffoli-ec
 	   :swap
 	   :phase
 	   :pauli-x
+	   :pauli-x-ec
 	   :pauli-y
 	   :pauli-z
 	   :pi/8
@@ -46,6 +49,7 @@
 (defpackage :cl-lisqp
   (:nicknames :lisqp)
   (:use :cl :cl-quantum :cl-quantum-emulator :general-utilities)
-  (:export :lexer
+  (:export :lex-parse
 	   :back-end
-	   :top-level))
+	   :top-level
+	   :defcategory))
