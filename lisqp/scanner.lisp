@@ -111,8 +111,34 @@
 	(numerator 0)
 	(denominator 0)
 	(start 0)
-	(end (length token)))
-    ()))
+	(end (length token))
+	(in-denominator-p nil))
+    (progn
+      (if (or (plus-p (char token 0))
+	      (minus-p (char token 0)))
+	  (setf negative-p (minus-p (char token 0))
+		start (1+ start)))
+      (when (not (= (- end start) 0))
+	(do ((offset start (1+ start)))
+	    ((>= offset end)
+	     (if negative-p
+		 (- (/ numerator denominator))
+		 (/ numerator denominator)))
+	  ;; FIXME: There's something wrong!
+	  (let* ((point (char token offset))
+		 (digit (digit-p point :base 10)))
+	    (when (and (not digit)
+		       (char/= point #\/)
+	      (return-from scan-ratio)))
+	    (cond ((and digit in-denominator-p)
+		   (setf denominator (+ (* denominator 10) digit)))
+		  ((and digit (not in-denominator-p))
+		   (setf numerator (+ (* numerator 10) digit)))
+		  ((and (char= point #\/)
+			(not in-denominator-p))
+		   (setf in-denominator-p t))
+		  (t
+		   (return-from scan-ratio)))))))))
 
 (defun scan-int (token)
   "Scan next token as it was an integer."
@@ -134,7 +160,7 @@
 		 num))
 	  (let ((digit (digit-p (char token offset) :base scan-base)))
 	    (when (not digit)
-	      (return))
+	      (return-from scan-int))
 	    (setf num (+ (* num scan-base) digit))))))))
 	   
 ;;; APIs
