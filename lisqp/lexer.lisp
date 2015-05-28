@@ -6,7 +6,8 @@
 
 (deftype form-type ()
   '(member
-    :number
+    :int
+    :floating
     :character
     :symbol
     :function
@@ -21,12 +22,19 @@
     :accessor tag
     :documentation "A form's tag")))
 
-(defclass q-number (q-form)
+(defclass q-int (q-form)
   ((value
-    :type number
+    :type int
     :initarg :value
     :accessor value
-    :documentation "A number's value")))
+    :documentation "An integer's value")))
+
+(defclass q-float (q-form)
+  ((value
+    :type floating
+    :initarg :value
+    :accessor value
+    :documentation "A floating point's value.")))
 
 (defclass q-character (q-form)
   ((value
@@ -78,11 +86,17 @@
 (defgeneric form2str (form)
   (:documentation "Make a string by current form."))
 
-(defmethod form2str (form q-number)
-  (format nil "~A" (value form)))
+(defgeneric form2value (form)
+  (:documentation "Fetch the value from the form."))
+
+(defmethod form2str (form q-int)
+  (format nil "~D" (value form)))
+
+(defmethod form2str (form q-float)
+  (format nil "~G" (value form)))
 
 (defmethod form2str (form q-character)
-  (format nil "~A" (value form)))
+  (format nil "~C" (value form)))
 
 (defmethod form2str (form q-symbol)
   (format nil "~A" (name form)))
@@ -92,14 +106,23 @@
 
 ;;; FIXME
 (defmethod form2str (form q-list)
-  (format nil "~A ~A" (head form) (tail form)))
+  (format nil "(~A ~A)" (head form) (tail form)))
 
 ;;; FIXME
 (defmethod form2str (form q-array)
-  (format nil "~A" (values form)))
+  (format nil "#(~A)" (values form)))
 
 (defmethod form2str (form q-string)
   (format nil (value form)))
+
+(defmethod form2value (form q-int)
+  (parse-integer (subseq *scan-buffer* *next-to-read* *next-to-write*) :radix *number-base*))
+
+(defmethod form2value (form q-float)
+  (parse-float (subseq *scan-buffer* *next-to-read* *next-to-write*) :radix *number-base*))
+
+(defmethod form2value (form q-character)
+  (form))
 
 ;;; APIs
 (defun lex-parse ())
