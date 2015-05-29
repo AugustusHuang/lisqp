@@ -12,9 +12,13 @@
 
 (defvar *scan-base* 10)
 
+;;; Scanner readtable
+(defvar *scan-table* (copy-readtable))
+
 (declaim (type integer *next-to-read* *next-to-write*))
 (declaim (type (simple-array character (*)) *scan-buffer*))
 (declaim (type (integer 2 36) *scan-base*))
+(declaim (type readtable *scan-table*))
 
 (declaim (inline reset-scan-buffer))
 (defun reset-scan-buffer ()
@@ -63,7 +67,7 @@
   (setf *scan-base* new-base))
 
 (defmacro with-scan-buffer (() &body body)
-  `(let* ((*scan-buffer* (make-string 128))
+  `(let* ((*scan-buffer* (make-string 32))
 	  (*next-to-read* 0)
 	  (*next-to-write* 0))
      ,@body))
@@ -107,6 +111,7 @@
 
 ;;; With reversible computations, it seems that there's no need to introduce
 ;;; floating point numbers --- May 29, 2015, Augustus
+;;; Don't evaluate to themselves but make qubits!
 (defun scan-ratio (token)
   "Scan next token as it was a ratio number."
   (let ((negative-p nil)
@@ -164,7 +169,7 @@
 
 ;;; FIXME: constructing
 (defun scan-token (stream first)
-  "scan a token from 'stream' with 'first' as the initial character."
+  "Scan a token from 'stream' with 'first' as the initial character."
   ;; Maybe use with-scan-buffer.
   (let ((token (make-array 16 :element-type 'character
 			   :adjustable t
@@ -250,10 +255,12 @@
              (intern token))))))
 
 (defun scan-left-parenthesis (stream ignore)
+  "Scan left parenthesis and match its partner."
   (declare (ignore ignore))
   ())
 
 (defun scan-right-parenthesis (stream first)
+  "Scan a right parenthesis when mismatched."
   (declare (ignore stream))
   (error 'scanner-error
 	 :stream stream
@@ -261,31 +268,86 @@
 	 :format-arguments (list first)))
 
 (defun scan-comment (stream ignore)
+  "Scan and pass over comment."
   (declare (ignore ignore))
   ())
 
 (defun scan-quote (stream ignore)
+  "Scan quoted list."
   (declare (ignore ignore))
-  ;; Classical
   (list 'quote (read stream t nil t)))
 
-(defun scan-function (stream ignore)
+(defun scan-classic-function (stream sub c)
+  "Scan a function, classic version."
+  (declare (ignore sub c))
+  (list 'function (scan stream t nil t)))
+
+(defun scan-quantum-function (stream sub c)
+  "Scan a function, quantum version."
+  (declare (ignore sub c))
+  (list 'q-function (scan stream t nil t)))
+
+(defun scan-character (stream sub c)
+  "Scan a character."
+  )
+
+(defun scan-string (stream ignore)
+  "Scan a string."
   (declare (ignore ignore))
   )
 
-(defun scan-character (stream)
+(defun scan-radix (stream sub c)
+  "Scan a different based number."
+  (let* ((bases '((#\B . 2) (#\O . 8) (#\X . 16)))
+	 (usual-base (assoc sub bases))
+	 (base (cond (usual-base
+		      (cdr usual-base))
+		     (c c)
+		     (t
+		      (error "Invalid radix #~A" sub)))))
+    (declare (type (integer 2 36) base))
+    (let ((*scan-base* base))
+      (the rational (scan stream t nil t)))))
+
+(defun scan-complex (stream sub c)
+  "Scan a complex number."
+  (declare (ignore sub c))
+  (let ((num (scan stream t nil t)))
+    (when (or (not (listp num))
+	      (/= (length num) 2)
+	      (not (realp (first num)))
+	      (not (realp (second num))))
+      (error "Invalid complex number ~S" num))
+    (complex (first num) (second num))))
+
+(defun scan-array (stream sub c)
+  "Scan an array."
   )
 
-(defun scan-radix (stream)
-  )
-
-(defun scan-complex (stream)
-  )
-
-(defun scan-array (stream)
+(defun scan-big-comment (stream sub c)
+  "Scan a big comment surrounded with '#|' and '|#'."
   )
 
 ;;; APIs
 (defun scan ()
-  "Generic scanner routine of the compiler/interpreter."
+  "Generic scan routine of the compiler/interpreter."
   )
+
+;;; Setup
+(progn
+  (set-macro-character #\( 'scan-left-parenthesis nil *scan-table*)
+  (set-macro-character #\) 'scan-right-parenthesis nil *scan-table*)
+  (set-macro-character #\' 'scan-quote nil *scan-table*)
+  (set-macro-character #\; 'scan-comment nil *scan-table*)
+  (set-macro-character #\" 'scan-string nil *scan-table*)
+  (make-dispatch-macro-character #\# t *scan-table*)
+  (set-dispatch-macro-character #\# #\' 'scan-classic-function *scan-table*)
+  (set-dispatch-macro-character #\# #\B 'scan-radix *scan-table*)
+  (set-dispatch-macro-character #\# #\O 'scan-radix *scan-table*)
+  (set-dispatch-macro-character #\# #\X 'scan-radix *scan-table*)
+  (set-dispatch-macro-character #\# #\R 'scan-radix *scan-table*)
+  (set-dispatch-macro-character #\# #\C 'scan-complex *scan-table*)
+  (set-dispatch-macro-character #\# #\A 'scan-array *scan-table*)
+  (set-dispatch-macro-character #\# #\| 'scan-big-comment *scan-table*)
+  (make-dispatch-macro-character #\% t *scan-table*)
+  (set-dispatch-macro-character #\% #\' 'scan-quantum-function *scan-table*))
