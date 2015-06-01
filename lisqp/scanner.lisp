@@ -13,12 +13,16 @@
 (defvar *scan-base* 10)
 
 ;;; Scanner readtable
+(declaim (special *original-table* *scan-table*)
+	 (type readtable *original-table* *scan-table*))
+;;; There will be some differences between lisqp and lisp!
 (defvar *scan-table* (copy-readtable))
+;;; This is for recovery.
+(defvar *original-table* (copy-readtable nil))
 
 (declaim (type integer *next-to-read* *next-to-write*))
 (declaim (type (simple-array character (*)) *scan-buffer*))
 (declaim (type (integer 2 36) *scan-base*))
-(declaim (type readtable *scan-table*))
 
 (declaim (inline reset-scan-buffer))
 (defun reset-scan-buffer ()
@@ -77,6 +81,13 @@
   "Output scan-buffer in string format."
   (subseq *scan-buffer* 0 *next-to-write*))
 
+;;; Now I assume ASCII here.
+;;; TODO: How about Unicode?
+(declaim (inline base-char-p))
+(defun base-char-p (char)
+  (and (characterp char)
+       (< (char-code char) 127)))
+
 (declaim (inline plus-p))
 (defun plus-p (char)
   (eql char #\+))
@@ -84,6 +95,19 @@
 (declaim (inline minus-p))
 (defun minus-p (char)
   (eql char #\-))
+
+;;; Maybe I should implement a scan-table structure???
+(declaim (inline whitespace[2]p))
+(defun whitespace[2]p (char &optional (readtable *readtable*))
+  "Test if CHAR is a whitespace[2] character under READTABLE."
+  (eql (readtable-syntax-type char readtable) :whitespace))
+
+(declaim (inline invalidp))
+(defun invalidp (char &optional (readtable *readtable*))
+  "Test if CHAR is an invalid character under READTABLE."
+  (and (eql (readtable-syntax-type char readtable) nil)
+       (or (member char '(#\Backspace #\Tab #\Newline #\Linefeed #\Page
+			  #\Return #\Space #\Rubout)))))
 
 (defun digit-p (char &key (base *scan-base*))
   (declare (type (integer 2 36) base))
@@ -108,6 +132,26 @@
 		 nil)))
 	  (t
 	   nil))))
+
+(defun readtable-syntax-type (char &optional (readtable *readtable*))
+  (check-type readtable (or readtable null) "a readtable designator")
+  (check-type char character)
+  (unless readtable
+    (setf readtable *standard-readtable*))
+  (cond ((base-char-p char)
+	 (svref (readtable-base-characters readtable) (char-code char)))
+	(t
+	 (gethash char (readtable-extended-characters readtable) nil))))
+
+(defun (setf readtable-syntax-type) (value char &optional (readtable *readtable*))
+  (check-type readtable (or readtable null) "a readtable designator")
+  (check-type char character)
+  (unless readtable
+    (setf readtable *standard-readtable*))
+  (cond ((base-char-p char)
+	 (setf (svref (readtable-base-characters readtable) (char-code char)) value))
+	(t
+	 (setf (gethash char (readtable-extended-characters readtable)) value))))
 
 ;;; With reversible computations, it seems that there's no need to introduce
 ;;; floating point numbers --- May 29, 2015, Augustus
@@ -270,7 +314,8 @@
 (defun scan-comment (stream ignore)
   "Scan and pass over comment."
   (declare (ignore ignore))
-  ())
+  (do () ((char= (read-char stream nil #\Newline t) #\Newline)))
+  (values))
 
 (defun scan-quote (stream ignore)
   "Scan quoted list."
@@ -328,12 +373,41 @@
   "Scan a big comment surrounded with '#|' and '|#'."
   )
 
+(defun scan-intern (stream eof-error-p eof-value recursive-p)
+  (loop (let ((c (read-char stream eof-error-p 'nil t)))
+	  (when (eql c 'nil)
+	    (return eof-value))
+	  (when (invalidp c)
+	    (error 'scanner-error :stream stream
+		   :format-control "Read invalid character ~S."
+		   :format-arguments (list c)))
+	  (unless (whitespace[2]p c)
+	    (let ((value (multiple-value-list (funcall (or (get-macro-character c)
+							   #'read-token)
+						       stream c))))
+	      (when value
+		(return (first value))))))))
+
 ;;; APIs
-(defun scan ()
+;;; Missing: 'follow-stream-designator 'with-stream-editor
+(defun scan (&optional stream (eof-error-p t) eof-value recursive-p)
   "Generic scan routine of the compiler/interpreter."
-  )
+  (let ((s (follow-stream-designator stream *standard-input*)))
+    (with-stream-editor (s recursive-p)
+      (let ((result (scan-intern s eof-error-p eof-value recursive-p)))
+	(unless (or (eql result eof-value)
+		    recursive-p)
+	  (let ((c (read-char s nil nil)))
+	    (when (and c
+		       (not (whitespace[2]p c)))
+	      (unread-char c s))))
+	result))))
 
 ;;; Setup
+;;; To use *scan-table* as the default readtable,
+;;; use (setq *readtable* (copy-readtable *scan-table*)) after initialization.
+;;; To restore standard common lisp syntax,
+;;; use (setq *readtable* (copy-readtable nil)).
 (progn
   (set-macro-character #\( 'scan-left-parenthesis nil *scan-table*)
   (set-macro-character #\) 'scan-right-parenthesis nil *scan-table*)

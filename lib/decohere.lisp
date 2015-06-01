@@ -9,14 +9,14 @@
 
 (declaim (inline get-decoherence-level))
 (defun get-decoherence-level ()
-  "Get current decoherence level."
+  "Get current decoherence level, 0 means decoherence not enabled."
   *decoherence-level*)
 
 (declaim (inline set-decoherence-level))
 (defun set-decoherence-level (level)
-  "Set current decoherence level to level."
+  "Set current decoherence level to level, above 1 means decoherence enabled."
   (setf *decoherence-level* level))
 
-(defun decohere ()
+(defun decohere (qreg)
   "Decohere."
-  )
+  (declare (type quantum-register qreg)))

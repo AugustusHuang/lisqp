@@ -101,7 +101,7 @@
 	     (gen-body fn-name-options :test '#'equal
 		       :key-exp `(list* ,@vars)))))))
 
-(defun transpose (matrix)
+(defun matrix-transpose (matrix)
   "Returns the transposition of a given matrix."
   (declare (type matrix matrix))
   (let* ((row (first (array-dimensions matrix)))
@@ -113,7 +113,7 @@
 		    (aref matrix i j))))
     out))
 
-(defun conjugate (matrix)
+(defun matrix-conjugate (matrix)
   "Returns the conjugation of a given matrix."
   (declare (type matrix matrix))
   (let* ((row (first (array-dimensions matrix)))
@@ -125,10 +125,10 @@
 		    (conjugate (aref matrix i j)))))
     out))
 
-(defun adjoint (matrix)
+(defun matrix-adjoint (matrix)
   "Returns the adjoint of a given matrix."
   (declare (type matrix matrix))
-  (funcall conjugate (funcall transpose matrix)))
+  (funcall matrix-conjugate (funcall matrix-transpose matrix)))
 
 (defun matrix-* (matrix1 &rest more-matrices)
   "Returns product of matrices, from left to right."
@@ -148,3 +148,18 @@
 (defun qubits (num)
   "Get number of qubits (and amount of superfluous) to represent 'num'."
   (ceiling (log num 2)))
+
+(defun matrix-inverse (matrix)
+  "Returns the inverse matrix of a given matrix."
+  (declare (type square-matrix matrix))
+  )
+
+(defun matrix-rank (matrix)
+  "Returns the rank of a given matrix."
+  (declare (type matrix matrix))
+  )
+
+(defun matrix-determinant (matrix)
+  "Returns the determinant of a given matrix."
+  (declare (type matrix matrix))
+  )

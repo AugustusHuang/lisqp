@@ -15,3 +15,6 @@
 
 (defun %swap ()
   "Swap two numbers.")
+
+(defun %make-instance ()
+  "Make a quantum instance of 'class'.")
