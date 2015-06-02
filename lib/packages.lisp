@@ -7,12 +7,14 @@
   (:use :cl)
   (:export :dovec
 	   :with-gensyms
-	   :transpose
-	   :conjugate
-	   :adjoint
+	   :matrix-transpose
+	   :matrix-conjugate
+	   :matrix-adjoint
 	   :matrix-*
 	   :matrix-+
-	   :matrix--))
+	   :matrix--
+	   :matrix-invert
+	   :matrix-determinant))
 
 (defpackage :cl-quantum
   (:nicknames :quantum :cl-qu)
@@ -49,7 +51,10 @@
 (defpackage :cl-lisqp
   (:nicknames :lisqp)
   (:use :cl :cl-quantum :cl-quantum-emulator :general-utilities)
-  (:export :lex-parse
+  (:export :scan
 	   :back-end
 	   :top-level
-	   :defcategory))
+	   :%swap
+	   :%grover-algorithm
+	   :%shor-algorithm
+	   :%linear-system))

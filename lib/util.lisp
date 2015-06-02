@@ -149,17 +149,118 @@
   "Get number of qubits (and amount of superfluous) to represent 'num'."
   (ceiling (log num 2)))
 
-(defun matrix-inverse (matrix)
+(defun matrix-invert (matrix)
   "Returns the inverse matrix of a given matrix."
   (declare (type square-matrix matrix))
-  )
+  (let* ((dim (array-dimension matrix 0))
+	 (l (make-array dim :initial-element 0))
+	 (m (make-array dim :initial-element 0))
+	 (t 0)
+	 (det 1)
+	 (out (make-array '(,dim ,dim) :initial-element 0)))
+    (when (not (equal matrix out))
+      (loop for i from 0 to (- dim 1) do
+	   (loop for j from 0 to (- dim 1) do
+		(setf (aref out i j) (aref matrix i j)))))
+    (do ((k 0 (1+ k))
+	 (maximum 0)
+	 (1/max 0))
+	((>= k dim))
+      (setf (svref l k) k
+	    (svref m k) k
+	    maximum (aref out k k))
+      (loop for i from k to (- dim 1) do
+	   (loop for j from k to (- dim 1) do
+		(when (> (abs (aref out i j)) (abs maximum))
+		  (setf maximum (aref out i j)
+			(svref l k) i
+			(svref m k) j))))
 
-(defun matrix-rank (matrix)
-  "Returns the rank of a given matrix."
-  (declare (type matrix matrix))
-  )
+      ;; Interchange rows with pivot.
+      (if (> (svref l k) k)
+	  (do ((j 0 (1+ j))
+	       (i (svref l k)))
+	      ((>= j dim))
+	    (setf t (- (aref out k j))
+		  (aref out k j) (aref out i j)
+		  (aref out i j) t)))
+      (if (> (svref m k) k)
+	  (do ((i 0 (1+ i))
+	       (j (svref m k)))
+	      ((>= i dim))
+	    (setf t (- (aref out i k))
+		  (aref out i k) (aref out i j)
+		  (aref out i j) t)))
+      (if (equalp maximum 0)
+	  (return-from matrix-invert 0))
+      (setf 1/max (/ 1 maximum))
+      (loop for i from 0 to (- dim 1) do
+	   (if (not (= i k))
+	       (setf (aref out i k)
+		     (* (aref out i k) (- 1/max)))))
+
+      ;; Then reduce it.
+      (loop for i from 0 to (- dim 1) do
+	   (when (not (= i k))
+	     (setf t (aref out i k))
+	     (loop for j from 0 to (- dim 1) do
+		  (if (not (= j k))
+		      (incf (aref out i j)
+			    (* t (aref out k j)))))))
+
+      ;; Divide by pivot row.
+      (loop for j from 0 to (- dim 1) do
+	   (if (not (= j k))
+	       (setf (aref out k j)
+		     (* (aref out k j) 1/max))))
+      (setf det (* det maximum)
+	    (aref out k k) 1/max))
+
+    ;; And finally...
+    (loop for k from (1- dim) downto 0
+	 (if (> (svref l k) k)
+	     (do ((j 0 (1+ j))
+		  (i (svref l k)))
+		 ((>= j dim))
+	       (setf t (aref out j k)
+		     (aref out j k) (- (aref out j i))
+		     (aref out j i) t)))
+	 (if (> (svref m k) k)
+	     (do ((i 0 (1+ i))
+		  (j (svref m k)))
+		 ((>= i dim))
+	       (setf t (aref out k i)
+		     (aref out k i) (- (aref out j i))
+		     (aref out j i) t))))
+    (values out det)))
 
 (defun matrix-determinant (matrix)
   "Returns the determinant of a given matrix."
   (declare (type matrix matrix))
-  )
+  (second (multiple-value-list (matrix-invert matrix))))
+
+(defun inner-product (vector1 vector2)
+  "Returns the inner-product of two vectors."
+  (declare (type vector vector1)
+	   (type vector vector2))
+  (let ((dim (array-dimension vector1 0))
+	(result 0))
+    (if (not (= dim (array-dimension vector2 0)))
+	     (error "vectors are of different size"))
+    (loop for i from 0 to (- dim 1) do
+	 (incf result (* (svref vector1 i) (svref vector2 i))))
+    result))
+
+(defun vec*matrix (vec matrix)
+  "Returns product of a vector and a matrix."
+  (declare (type vector vec)
+	   (type matrix matrix))
+  (let* ((row (array-dimension matrix 0))
+	 (column (array-dimension matrix 1))
+	 (out (make-array '(,column) :initial-element 0)))
+    (if (not (= (array-dimension vec 0) row))
+	(error "vector and matrix size mismatch"))
+    (loop for i from 0 to (- column 1) do
+	 (loop for j from 0 to (- row 1) do
+	      (incf (svref out i) (* (svref vec j) (aref matrix j i)))))
+    out))

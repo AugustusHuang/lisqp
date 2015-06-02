@@ -74,6 +74,13 @@
 	   (type quantum-register qreg))
   (setf (quantum-register-pure-states qreg) pstates))
 
+(declaim (inline make-matrix make-square-matrix))
+(defun make-matrix (dimensions &key (element-type t) initial-element initial-contents adjustable fill-pointer displaced-to displaced-index-offset)
+  (make-array dimensions element-type initial-element initial-contents adjustable fill-pointer displaced-to displaced-index-offset))
+
+(defun make-square-matrix (dimension &key (element-type t) initial-element initial-contents adjustable fill-pointer displaced-to displaced-index-offset)
+  (make-matrix '(,dimension ,dimension) element-type initial-element initial-contents adjustable fill-pointer displaced-to displaced-index-offset))
+
 (defun unitary-matrix-p (matrix)
   "Predicate of unitary matrix."
   (declare (type square-matrix matrix))
@@ -100,13 +107,6 @@
     (if (= 0 sum)
 	t
 	nil)))
-
-(defun rank-full-p (matrix)
-  "Predicate of full-rank matrix using gaussian elimination."
-  (declare (type matrix matrix))
-  (if (= (matrix-rank matrix) (min (first (array-dimensions matrix)) (second (array-dimensions matrix))))
-      t
-      nil))
 
 (defun hermitian-p (matrix)
   "Predicate of Hermitian matrix."

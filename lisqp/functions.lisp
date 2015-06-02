@@ -7,14 +7,15 @@
 ;;; All quantum functions will begin with '%'.
 ;;; I choose this because it looks like <bra|ket>!
 ;;; Likely, all classic functions runs on the host will begin with '@'.
-(defun %defcategory ()
-  "Define a generic category.")
-
-(defun %defmonad ()
-  "Define a generic monad.")
 
 (defun %swap ()
   "Swap two numbers.")
 
-(defun %make-instance ()
-  "Make a quantum instance of 'class'.")
+(defun %grover-algorithm ()
+  "Grover search algorithm.")
+
+(defun %shor-algorithm ()
+  "Shor algorithm.")
+
+(defun %linear-system ()
+  "Quantum linear system algorithm.")
