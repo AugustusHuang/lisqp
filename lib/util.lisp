@@ -59,47 +59,15 @@
 		  symbols)
 	  body))
 
-(defmacro gethash-or-set-default (key table default)
-  "Get the value from table or set it to default value."
-  (with-gensyms (keyvar tabvar val found-p)
-    `(let ((keyvar ,key)
-	   (tabvar ,table))
-       (multiple-value-bind (val found-p)
-	   (gethash keyvar tabvar)
-	 (if found-p
-	     val
-	     (setf (gethash keyvar tabvar)
-		   ,default))))))
-
 (defmacro dovec ((var vector &key (start 0) end) &body body)
   "Vector version of 'doxxx' macros."
   `(block nil
      (map-vec #'(lambda (,var) ,@body)
 	      ,vector :start start :end end)))
 
-(defmacro defun-memo (fn-name-options (&rest args) &body body)
-  "Remember what have been done with 'this' function."
-  (let ((vars (arglist-vars args)))
-    (flet ((gen-body (fn-name &key (test '#'equal)
-			      size key-exp)
-	     `(eval-when (load eval compile)
-		(setf (get ',fn-name 'memoize-table)
-		      (make-hash-table :test ,test
-				       ,@(when size `(:size ,size))))
-		(defun ,fn-name ,args
-		  (gethash-or-set-default
-		   ,key-exp
-		   (get ',fn-name 'memoize-table)
-		   (progn ,@body))))))
-      (cond ((consp fn-name-options)
-	     (apply #'gen-body fn-name-options))
-	    ((and (= (length vars) 1)
-		  (not (member '&rest args)))
-	     (gen-body fn-name-options :test '#'eql
-		       :key-exp (first vars)))
-	    (t
-	     (gen-body fn-name-options :test '#'equal
-		       :key-exp `(list* ,@vars)))))))
+(defun normalised-random (supremum)
+  "Get a random number between 0 to 1 (exclusive)."
+  (/ (random supremum) supremum))
 
 (defun matrix-transpose (matrix)
   "Returns the transposition of a given matrix."
@@ -264,3 +232,6 @@
 	 (loop for j from 0 to (- row 1) do
 	      (incf (svref out i) (* (svref vec j) (aref matrix j i)))))
     out))
+
+(defun demoivre (angle)
+  (complex (cos angle) (sin angle)))

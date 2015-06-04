@@ -8,10 +8,6 @@
   "Unsigned integer."
   '(integer 0 *))
 
-(deftype amplitude ()
-  "Amplitude of a state will lie between 0 and 1."
-  '(real 0 1))
-
 (deftype angle ()
   "Bloch sphere angle."
   '(real #.pi #.(- pi)))
@@ -28,7 +24,7 @@
   "Quantum register, with 'width' qubits and 'l0-norm' non-zero basis states."
   (width 0 :type uint)
   (l0-norm 0 :type uint)
-  (amplitude #(1) :type (vector amplitude))
+  (amplitude #(1) :type (vector complex))
   (pure-states #(0) :type (vector uint)))
 
 (declaim (inline get-q-width get-q-l0-norm get-q-amplitude get-q-pure-states))

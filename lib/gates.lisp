@@ -22,7 +22,15 @@
   "Controlled not gate with error correction."
   (declare (type integer control target)
 	   (type quantum-register qreg))
-  )
+  (let ((current-level (get-decoherence-level))
+	(current-width (get-ec-width)))
+    (set-decoherence-level 0)
+    (set-ec-width 0)
+    (c-not control target qreg)
+    (c-not (+ control current-width) (+ target current-width) qreg)
+    (set-decoherence-level current-level)
+    (c-not (+ control (* 2 current-width)) (+ target (* 2 current-width)) qreg)
+    (set-ec-width current-width)))
 
 (defun hadamard (target qreg)
   "Hadamard gate."
@@ -40,7 +48,31 @@
   "Toffoli gate with error correction."
   (declare (type integer control1 control2 target)
 	   (type quantum-register qreg))
-  )
+  (let* ((current-level (get-decoherence-level))
+	 (current-width (get-ec-width))
+	 (mask (+ (ash 1 target)
+		  (ash 1 (+ target current-width))
+		  (ash 1 (+ target (* 2 current-width)))))
+	 (l0 (get-q-l0-norm qreg))
+	 (states (get-q-pure-states qreg)))
+    (loop for i from 0 to (- l0 1) do
+	 (let ((c1 0)
+	       (c2 0))
+	   (if (logtest (svref states i) (ash 1 control1))
+	       (setf c1 1))
+	   (if (logtest (svref states i) (ash 1 (+ control1 current-width)))
+	       (setf c1 (boole boole-xor c1 1)))
+	   (if (logtest (svref states i) (ash 1 (+ control1 (* 2 current-width))))
+	       (setf c1 (boole boole-xor c1 1)))
+	   (if (logtest (svref states i) (ash 1 control2))
+	       (setf c2 1))
+	   (if (logtest (svref states i) (ash 1 (+ control2 current-width)))
+	       (setf c2 (boole boole-xor c2 1)))
+	   (if (logtest (svref states i) (ash 1 (+ control2 (* 2 current-width))))
+	       (setf c2 (boole boole-xor c2 1)))
+	   (if (= c1 c2 1)
+	       (setf (svref states i) (boole boole-xor (svref states i) mask)))))
+    (decohere qreg)))
 
 (defun swap ()
   "Swapping gate."
@@ -60,7 +92,15 @@
   "Pauli x gate with error correction."
   (declare (type integer target)
 	   (type quantum-register qreg))
-  )
+  (let ((current-level (get-decoherence-level))
+	(current-width (get-ec-width)))
+    (set-decoherence-level 0)
+    (set-ec-width 0)
+    (pauli-x target qreg)
+    (pauli-x (+ target current-width) qreg)
+    (set-decoherence-level current-level)
+    (pauli-x (+ target (* 2 current-width)) qreg)
+    (set-ec-width current-width)))
 
 (defun pauli-y (target qreg)
   "Pauli y gate."
@@ -100,4 +140,8 @@
 
 (defun fredkin ()
   "Fredkin gate."
+  )
+
+(defun measure (target qreg)
+  "Measure 'target' qubits in the quantum-register."
   )
