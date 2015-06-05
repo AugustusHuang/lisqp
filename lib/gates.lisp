@@ -74,12 +74,16 @@
 	       (setf (svref states i) (boole boole-xor (svref states i) mask)))))
     (decohere qreg)))
 
-(defun swap ()
+(defun swap (control target qreg)
   "Swapping gate."
+  (declare (type integer control target)
+	   (type quantum-register qreg))
   )
 
-(defun phase ()
+(defun phase (target qreg)
   "Phase gate."
+  (declare (type integer target)
+	   (type quantum-register qreg))
   )
 
 (defun pauli-x (target qreg)
@@ -138,10 +142,14 @@
 	   (type quantum-register qreg))
   )
 
-(defun fredkin ()
+(defun fredkin (control1 control2 target qreg)
   "Fredkin gate."
+  (declare (type integer control1 control2 target)
+	   (type quantum-register qreg))
   )
 
 (defun measure (target qreg)
   "Measure 'target' qubits in the quantum-register."
+  (declare (type integer target)
+	   (type quantum-register qreg))
   )

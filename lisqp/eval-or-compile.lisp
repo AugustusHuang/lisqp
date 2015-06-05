@@ -6,7 +6,7 @@
 
 ;;; APIs
 (defun eval ()
-  "")
+  "Evaluate routine used by interpreter.")
 
 (defun compile ()
-  "")
+  "Compile routine direct translate forms into emulator opcodes.")

@@ -1,4 +1,4 @@
-;;;; Lisqp scanner
+a;;;; Lisqp scanner
 ;;;; Author: Augustus Huang
 ;;;; Date: May 27, 2015
 
@@ -12,17 +12,126 @@
 
 (defvar *scan-base* 10)
 
+(defstruct (scan-table
+	     (:predicate scan-table-p)
+	     (:copier))
+  (case :upcase :type (member :upcase :downcase :preserve :invert))
+  (base-characters (make-array 256 :initial-element nil) :type (simple-vector 256))
+  (extended-characters (make-hash-table) :type hash-table))
+
+(defun copy-scan-table (&optional (from-table *scan-table*) to-table)
+  (when (eql to-table 'nil)
+    (setf to-table (make-scan-table)))
+  (when (eql from-table 'nil)
+    (setf from-table *standard-scan-table*))
+  (setf (scan-table-case to-table) (scan-table-case from-table))
+  (dotimes (i 256)
+    (set-syntax-from-char (code-char i) (code-char i) to-table from-table))
+  (clrhash (scan-table-extended-characters to-table))
+  (maphash (lambda (k v)
+	     (declare (ignore))
+	     (set-syntax-from-char k k to-table from-table))
+	   (scan-table-extended-characters from-table))
+  to-table)
+a
+(defun scan-table-syntax-type (char &optional (scan-table *scan-table*))
+  (unless scan-table
+    (setf scan-table *standard-scan-table*))
+  (cond ((base-char-p char)
+	 (svref (scan-table-base-characters scan-table) (char-code char)))
+	(t
+	 (gethash char (scan-table-extended-characters scan-table) nil))))
+
+(defun (setf scan-table-syntax-type) (value char &optional (scan-table *scan-table*))
+  (unless scan-table
+    (setf scan-table *standard-scan-table*))
+  (cond ((base-char-p char)
+	 (setf (svref (scan-table-base-characters scan-table) (char-code char)) value))
+	(t
+	 (setf (gethash char (scan-table-extended-characters scan-table)) value))))
+
+(defun get-scan-macro-character (char &optional (scan-table *scan-table*))
+  (let ((data (scan-table-syntax-type char scan-table)))
+    (if (listp data)
+	(values (first data) (second data))
+	(values nil nil))))
+
+(defun set-scan-macro-character (char new-function &optional non-terminating-p (scan-table *scan-table*))
+  (if new-function
+      (setf (scan-table-syntax-type char scan-table)
+	    (list new-function (not non-terminating-p)))
+      (setf (scan-table-syntax-type char scan-table) nil))
+  t)
+
+(defun make-scan-dispatch-macro-character (char &optional non-terminating-p (scan-table *scan-table*))
+  (setf (scan-table-syntax-type char scan-table)
+	(list 'read-dispatch-char (not non-terminating-p)
+	      (make-array 256 :initial-element nil)
+	      (make-hash-table)))
+  t)
+
+(defun get-scan-dispatch-macro-character (disp-char sub-char &optional (scan-table *scan-table*))
+  (let ((data (scan-table-syntax-type disp-char scan-table)))
+    (unless (and (listp data) (= (length data) 4))
+      (error "Character ~S is not a dispatching macro character." disp-char))
+    (cond ((base-char-p sub-char)
+	   (svref (third data) (char-code sub-char)))
+	  (t (gethash sub-char (fourth data))))))
+
+(defun set-scan-dispatch-macro-character (disp-char sub-char new-function &optional (scan-table *scan-table*))
+  (setf sub-char (char-upcase sub-char))
+  (let ((data (scan-table-syntax-type disp-char scan-table)))
+    (unless (and (listp data) (= (length data) 4))
+      (error "Character ~S is not a dispatching macro character." disp-char))
+    (cond ((base-char-p sub-char)
+	   (setf (svref (third data) (char-code sub-char)) new-function))
+	  (t (setf (gethash sub-char (fourth data)) new-function))))
+  t)
+
+(defun set-syntax-from-char (to-char from-char &optional (to-table *scan-table*) from-table)
+  (let ((data (scan-table-syntax-type from-char from-table)))
+    (cond ((not (consp data))
+	   (setf (scan-table-syntax-type to-char to-table) data))
+	  ((= (length data) 4)
+	   ;; Dispatching character, must copy the dispatch tables.
+	   (let ((ht (make-hash-table)))
+	     (maphash (lambda (k v) (setf (gethash k ht) v)) (fourth data))
+	     (setf (scan-table-syntax-type to-char to-table)
+		   (list (first data) (second data)
+			 (make-array 256 :initial-contents (third data))
+			 ht))))
+	  (t (setf (scan-table-syntax-type to-char to-table)
+		   (copy-list data)))))
+  t)
+
+(defun case-correct (c &optional (rt *readtable*))
+  "Change the case of C depending on the readtable-case of RT."
+  (ecase (readtable-case rt)
+    (:upcase (char-upcase c))
+    (:downcase (char-downcase c))
+    (:preserve c)
+    (:invert (if (upper-case-p c)
+		 (char-downcase c)
+		 (char-upcase c)))))
+
 ;;; Scanner readtable
-(declaim (special *original-table* *scan-table*)
-	 (type readtable *original-table* *scan-table*))
+(declaim (special *scan-table*)
+	 (type scan-table *scan-table*))
 ;;; There will be some differences between lisqp and lisp!
-(defvar *scan-table* (copy-readtable))
-;;; This is for recovery.
-(defvar *original-table* (copy-readtable nil))
+(defvar *scan-table* (copy-scan-table))
 
 (declaim (type integer *next-to-read* *next-to-write*))
 (declaim (type (simple-array character (*)) *scan-buffer*))
 (declaim (type (integer 2 36) *scan-base*))
+
+(setf (scan-table-syntax-type #\Tab *scan-table*) :whitespace
+      (scan-table-syntax-type #\Newline *scan-table*) :whitespace
+      (scan-table-syntax-type #\Linefeed *scan-table*) :whitespace
+      (scan-table-syntax-type #\Page *scan-table*) :whitespace
+      (scan-table-syntax-type #\Return *scan-table*) :whitespace
+      (scan-table-syntax-type #\Space *scan-table*) :whitespace
+      (scan-table-syntax-type #\\ *scan-table*) :single-escape
+      (scan-table-syntax-type #\| *scan-table*) :multiple-escape)
 
 (declaim (inline reset-scan-buffer))
 (defun reset-scan-buffer ()
@@ -81,12 +190,10 @@
   "Output scan-buffer in string format."
   (subseq *scan-buffer* 0 *next-to-write*))
 
-;;; Now I assume ASCII here.
-;;; TODO: How about Unicode?
 (declaim (inline base-char-p))
 (defun base-char-p (char)
   (and (characterp char)
-       (< (char-code char) 127)))
+       (< (char-code char) 255)))
 
 (declaim (inline plus-p))
 (defun plus-p (char)
@@ -96,18 +203,23 @@
 (defun minus-p (char)
   (eql char #\-))
 
-;;; Maybe I should implement a scan-table structure???
 (declaim (inline whitespace[2]p))
-(defun whitespace[2]p (char &optional (readtable *readtable*))
-  "Test if CHAR is a whitespace[2] character under READTABLE."
-  (eql (readtable-syntax-type char readtable) :whitespace))
+(defun whitespace[2]p (char &optional (scan-table *scan-table*))
+  "Test if 'char' is a whitespace[2] character in 'scan-table."
+  (eql (scan-table-syntax-type char scan-table) :whitespace))
 
 (declaim (inline invalidp))
-(defun invalidp (char &optional (readtable *readtable*))
-  "Test if CHAR is an invalid character under READTABLE."
-  (and (eql (readtable-syntax-type char readtable) nil)
+(defun invalidp (char &optional (scan-table *scan-table*))
+  "Test if 'char' is an invalid character in 'scan-table'."
+  (and (eql (scan-table-syntax-type char scan-table) nil)
        (or (member char '(#\Backspace #\Tab #\Newline #\Linefeed #\Page
 			  #\Return #\Space #\Rubout)))))
+
+(defun terminating-macro-p (char &optional (scan-table *scan-table*))
+  (multiple-value-bind (fn terminatingp)
+      (get-scan-macro-character char scan-table)
+    (declare (ignore fn))
+    terminatingp))
 
 (defun digit-p (char &key (base *scan-base*))
   (declare (type (integer 2 36) base))
@@ -132,26 +244,6 @@
 		 nil)))
 	  (t
 	   nil))))
-
-(defun readtable-syntax-type (char &optional (readtable *readtable*))
-  (check-type readtable (or readtable null) "a readtable designator")
-  (check-type char character)
-  (unless readtable
-    (setf readtable *standard-readtable*))
-  (cond ((base-char-p char)
-	 (svref (readtable-base-characters readtable) (char-code char)))
-	(t
-	 (gethash char (readtable-extended-characters readtable) nil))))
-
-(defun (setf readtable-syntax-type) (value char &optional (readtable *readtable*))
-  (check-type readtable (or readtable null) "a readtable designator")
-  (check-type char character)
-  (unless readtable
-    (setf readtable *standard-readtable*))
-  (cond ((base-char-p char)
-	 (setf (svref (readtable-base-characters readtable) (char-code char)) value))
-	(t
-	 (setf (gethash char (readtable-extended-characters readtable)) value))))
 
 ;;; With reversible computations, it seems that there's no need to introduce
 ;;; floating point numbers --- May 29, 2015, Augustus
@@ -218,16 +310,14 @@
   (let ((token (make-array 16 :element-type 'character
 			   :adjustable t
 			   :fill-pointer 0))
-	(seen-escape nil)
-	(package-name nil)
-	(intern-symbol nil))
+	(seen-escape nil))
     (do ((x first (read-char stream nil 'nil t)))
 	;; Read characters until EOF or a whitespace character or terminating macro character is seen.
 	((or (eql x 'nil)
 	     (when (or (terminating-macro-p x) (whitespace[2]p x))
 	       (unread-char x stream)
 	       t)))
-      (let ((syntax (readtable-syntax-type x)))
+      (let ((syntax (scan-table-syntax-type x)))
 	(cond ((eql syntax :single-escape)
 	       ;; Single escape character, read the next character directly
 	       ;; and do not try to parse the token as a number.
@@ -235,43 +325,22 @@
 		 (setf seen-escape t)
 		 (vector-push-extend y token)))
 	      ((eql syntax :multiple-escape)
-	       ;; Multiple escape character, read characters until another multiple escape character
-	       ;; is seen. Treat single escape characters as above. Don't parse the token as a number.
+	       ;; Multiple escape character, read characters until another
+	       ;; multiple escape character is seen.
+	       ;; Treat single escape characters as above.
+	       ;; Don't parse the token as a number.
 	       (setf seen-escape t)
 	       (do ((y (read-char stream t nil t)
 		       (read-char stream t nil t)))
-		   ((eql (readtable-syntax-type y) :multiple-escape))
-		 (if (eql (readtable-syntax-type y) :single-escape)
+		   ((eql (scan-table-syntax-type y) :multiple-escape))
+		 (if (eql (scan-table-syntax-type y) :single-escape)
 		     (vector-push-extend (read-char stream t nil t) token)
 		     (vector-push-extend y token))))
-	      ((eql x #\:)
-	       ;; Treat the token that was read in as a package name.
-	       (when package-name
-		 (error 'simple-reader-error :stream stream
-			:format-control "Too many package markers."
-			:format-arguments '()))
-	       ;; Test for "::" and invalid uses of the package marker
-	       (let ((y (read-char stream t nil t)))
-		 (when (or (terminating-macro-p y) (whitespace[2]p y))
-		   (error 'simple-reader-error :stream stream
-			  :format-control "Invalid character ~S following package marker."
-			  :format-arguments (list y)))
-		 (if (eql y #\:)
-		     (setf intern-symbol t)
-		     (unread-char y stream))
-		 ;; ":" and "::" with no leading package name denotes the KEYWORD package.
-		 (if (and (not seen-escape) (= 0 (length token)))
-		     (setf package-name "KEYWORD")
-		     (setf package-name token
-			   token (make-array 16
-					     :element-type 'character
-					     :adjustable t
-					     :fill-pointer 0)))))
 	      (t (vector-push-extend (case-correct x) token)))))
     ;; Check for invalid uses of the dot. Tokens that are constructed
     ;; entirely from dots are invalid unless one or more of the dots was
     ;; escaped or a package name was explicitly specified.
-    (unless (or package-name seen-escape)
+    (unless seen-escape
       (do ((offset 0 (1+ offset))
 	   (dot-count 0))
 	  ((>= offset (fill-pointer token))
@@ -283,15 +352,6 @@
 	  (incf dot-count))))
     (cond
       ;; Return a symbol immediately if a package marker was seen.
-      (package-name
-       (if (or intern-symbol (string= "KEYWORD" package-name))
-	   (intern token package-name)
-	   (multiple-value-bind (symbol status) (find-symbol token package-name)
-	     (unless (eql status :external)
-	       (error 'simple-reader-error :stream stream
-		      :format-control "Symbol ~S is internal to package ~S."
-		      :format-arguments (list token package-name)))
-	     symbol)))
       (seen-escape
        (intern token))
       (t (or (read-integer token)
@@ -403,25 +463,20 @@
 	      (unread-char c s))))
 	result))))
 
-;;; Setup
-;;; To use *scan-table* as the default readtable,
-;;; use (setq *readtable* (copy-readtable *scan-table*)) after initialization.
-;;; To restore standard common lisp syntax,
-;;; use (setq *readtable* (copy-readtable nil)).
 (progn
-  (set-macro-character #\( 'scan-left-parenthesis nil *scan-table*)
-  (set-macro-character #\) 'scan-right-parenthesis nil *scan-table*)
-  (set-macro-character #\' 'scan-quote nil *scan-table*)
-  (set-macro-character #\; 'scan-comment nil *scan-table*)
-  (set-macro-character #\" 'scan-string nil *scan-table*)
-  (make-dispatch-macro-character #\# t *scan-table*)
-  (set-dispatch-macro-character #\# #\' 'scan-classic-function *scan-table*)
-  (set-dispatch-macro-character #\# #\B 'scan-radix *scan-table*)
-  (set-dispatch-macro-character #\# #\O 'scan-radix *scan-table*)
-  (set-dispatch-macro-character #\# #\X 'scan-radix *scan-table*)
-  (set-dispatch-macro-character #\# #\R 'scan-radix *scan-table*)
-  (set-dispatch-macro-character #\# #\C 'scan-complex *scan-table*)
-  (set-dispatch-macro-character #\# #\A 'scan-array *scan-table*)
-  (set-dispatch-macro-character #\# #\| 'scan-big-comment *scan-table*)
-  (make-dispatch-macro-character #\% t *scan-table*)
-  (set-dispatch-macro-character #\% #\' 'scan-quantum-function *scan-table*))
+  (set-scan-macro-character #\( 'scan-left-parenthesis nil *scan-table*)
+  (set-scan-macro-character #\) 'scan-right-parenthesis nil *scan-table*)
+  (set-scan-macro-character #\' 'scan-quote nil *scan-table*)
+  (set-scan-macro-character #\; 'scan-comment nil *scan-table*)
+  (set-scan-macro-character #\" 'scan-string nil *scan-table*)
+  (make-scan-dispatch-macro-character #\# t *scan-table*)
+  (set-scan-dispatch-macro-character #\# #\' 'scan-classic-function *scan-table*)
+  (set-scan-dispatch-macro-character #\# #\B 'scan-radix *scan-table*)
+  (set-scan-dispatch-macro-character #\# #\O 'scan-radix *scan-table*)
+  (set-scan-dispatch-macro-character #\# #\X 'scan-radix *scan-table*)
+  (set-scan-dispatch-macro-character #\# #\R 'scan-radix *scan-table*)
+  (set-scan-dispatch-macro-character #\# #\C 'scan-complex *scan-table*)
+  (set-scan-dispatch-macro-character #\# #\A 'scan-array *scan-table*)
+  (set-scan-dispatch-macro-character #\# #\| 'scan-big-comment *scan-table*)
+  (make-scan-dispatch-macro-character #\% t *scan-table*)
+  (set-scan-dispatch-macro-character #\% #\' 'scan-quantum-function *scan-table*))
