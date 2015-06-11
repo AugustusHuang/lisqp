@@ -13,43 +13,56 @@
   "Helper of matrix-*."
   (declare (type matrix matrix1)
 	   (type matrix matrix2))
-  (let* ((m1-row (first (array-dimensions matrix1)))
-	 (m1-column (second (array-dimensions matrix1)))
-	 (m2-column (second (array-dimensions matrix2)))
-	 (matrix3 (make-array `(,m1-row ,m2-column) :initial-element 0)))
-    (loop for i from 0 to (- m1-row 1) do
-	 (loop for j from 0 to (- m2-column 1) do
-	      (setf (aref matrix3 i j)
-		    (loop for k from 0 to (- m1-column 1)
-			 sum (* (aref matrix1 i k)
-				(aref matrix2 k j))))))
-    matrix3))
+  (let ((m1-row (first (array-dimensions matrix1)))
+	(m1-column (second (array-dimensions matrix1)))
+	(m2-row (first (array-dimensions matrix2)))
+	(m2-column (second (array-dimensions matrix2))))
+    (if (/= m1-column m2-row)
+	(error "size mismatch")
+	(let ((matrix3 (make-array `(,m1-row ,m2-column) :initial-element 0)))
+	  (loop for i from 0 to (- m1-row 1) do
+	       (loop for j from 0 to (- m2-column 1) do
+		    (setf (aref matrix3 i j)
+			  (loop for k from 0 to (- m1-column 1)
+			     sum (* (aref matrix1 i k)
+				    (aref matrix2 k j))))))
+	  matrix3))))
 
 (defun matrix-+-2 (matrix1 matrix2)
   "Helper of matrix-+."
   (declare (type matrix matrix1)
 	   (type matrix matrix2))
-  (let* ((row (first (array-dimensions matrix1)))
-	 (column (second (array-dimensions matrix1)))
-	 (matrix3 (make-array `(,row ,column) :initial-element 0)))
-    (loop for i from 0 to (- row 1) do
-	 (loop for j from 0 to (- column 1) do
-	      (setf (aref matrix3 i j)
-		    (+ (aref matrix1 i j) (aref matrix2 i j)))))
-    matrix3))
+  (let ((m1-row (first (array-dimensions matrix1)))
+	(m1-column (second (array-dimensions matrix1)))
+	(m2-row (first (array-dimensions matrix2)))
+	(m2-column (second (array-dimensions matrix2))))
+    (if (or (/= m1-row m2-row)
+	    (/= m1-column m2-column))
+	(error "size mismatch")
+	(let ((matrix3 (make-array `(,m1-row ,m1-column) :initial-element 0)))
+	  (loop for i from 0 to (- m1-row 1) do
+	       (loop for j from 0 to (- m1-column 1) do
+		    (setf (aref matrix3 i j)
+			  (+ (aref matrix1 i j) (aref matrix2 i j)))))
+	  matrix3))))
 
 (defun matrix---2 (matrix1 matrix2)
   "Helper of matrix--."
   (declare (type matrix matrix1)
 	   (type matrix matrix2))
-  (let* ((row (first (array-dimensions matrix1)))
-	 (column (second (array-dimensions matrix1)))
-	 (matrix3 (make-array `(,row ,column) :initial-element 0)))
-    (loop for i from 0 to (- row 1) do
-	 (loop for j from 0 to (- column 1) do
-	      (setf (aref matrix3 i j)
-		    (- (aref matrix1 i j) (aref matrix2 i j)))))
-    matrix3))
+  (let ((m1-row (first (array-dimensions matrix1)))
+	(m1-column (second (array-dimensions matrix1)))
+	(m2-row (first (array-dimensions matrix2)))
+	(m2-column (second (array-dimensions matrix2))))
+    (if (or (/= m1-row m2-row)
+	    (/= m1-column m2-column))
+	(error "size mismatch")
+	(let ((matrix3 (make-array `(,m1-row ,m1-column) :initial-element 0)))
+	  (loop for i from 0 to (- m1-row 1) do
+	       (loop for j from 0 to (- m1-column 1) do
+		    (setf (aref matrix3 i j)
+			  (- (aref matrix1 i j) (aref matrix2 i j)))))
+	  matrix3))))
 
 ;;; APIs
 (defmacro with-gensyms (symbols body)
@@ -123,9 +136,9 @@
   (let* ((dim (array-dimension matrix 0))
 	 (l (make-array dim :initial-element 0))
 	 (m (make-array dim :initial-element 0))
-	 (t 0)
+	 (temp 0)
 	 (det 1)
-	 (out (make-array '(,dim ,dim) :initial-element 0)))
+	 (out (make-array `(,dim ,dim) :initial-element 0)))
     (when (not (equal matrix out))
       (loop for i from 0 to (- dim 1) do
 	   (loop for j from 0 to (- dim 1) do
@@ -149,16 +162,16 @@
 	  (do ((j 0 (1+ j))
 	       (i (svref l k)))
 	      ((>= j dim))
-	    (setf t (- (aref out k j))
+	    (setf temp (- (aref out k j))
 		  (aref out k j) (aref out i j)
-		  (aref out i j) t)))
+		  (aref out i j) temp)))
       (if (> (svref m k) k)
 	  (do ((i 0 (1+ i))
 	       (j (svref m k)))
 	      ((>= i dim))
-	    (setf t (- (aref out i k))
+	    (setf temp (- (aref out i k))
 		  (aref out i k) (aref out i j)
-		  (aref out i j) t)))
+		  (aref out i j) temp)))
       (if (equalp maximum 0)
 	  (return-from matrix-invert 0))
       (setf 1/max (/ 1 maximum))
@@ -170,11 +183,11 @@
       ;; Then reduce it.
       (loop for i from 0 to (- dim 1) do
 	   (when (not (= i k))
-	     (setf t (aref out i k))
+	     (setf temp (aref out i k))
 	     (loop for j from 0 to (- dim 1) do
 		  (if (not (= j k))
 		      (incf (aref out i j)
-			    (* t (aref out k j)))))))
+			    (* temp (aref out k j)))))))
 
       ;; Divide by pivot row.
       (loop for j from 0 to (- dim 1) do
@@ -185,21 +198,21 @@
 	    (aref out k k) 1/max))
 
     ;; And finally...
-    (loop for k from (1- dim) downto 0
+    (loop for k from (1- dim) downto 0 do
 	 (if (> (svref l k) k)
 	     (do ((j 0 (1+ j))
 		  (i (svref l k)))
 		 ((>= j dim))
-	       (setf t (aref out j k)
+	       (setf temp (aref out j k)
 		     (aref out j k) (- (aref out j i))
-		     (aref out j i) t)))
+		     (aref out j i) temp)))
 	 (if (> (svref m k) k)
 	     (do ((i 0 (1+ i))
 		  (j (svref m k)))
 		 ((>= i dim))
-	       (setf t (aref out k i)
+	       (setf temp (aref out k i)
 		     (aref out k i) (- (aref out j i))
-		     (aref out j i) t))))
+		     (aref out j i) temp))))
     (values out det)))
 
 (defun matrix-determinant (matrix)
