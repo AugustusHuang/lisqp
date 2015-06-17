@@ -43,5 +43,5 @@
 			     (ash 1 j))
 		    (incf angle (svref rand j))
 		    (decf angle (svref rand j))))
-	   (setf (svref (get-q-amplitude qreg) i) (* (svref (get-q-amplitude qreg))
+	   (setf (svref (get-q-amplitudes qreg) i) (* (svref (get-q-amplitudes qreg))
 						     (demoivre angle)))))))

@@ -24,10 +24,13 @@
   "Quantum register, with 'width' qubits and 'l0-norm' non-zero basis states."
   (width 0 :type uint)
   (l0-norm 0 :type uint)
-  (amplitude #(1) :type (vector complex))
+  (amplitudes #(1) :type (vector complex))
   (pure-states #(0) :type (vector uint)))
 
-(declaim (inline get-q-width get-q-l0-norm get-q-amplitude get-q-pure-states))
+(declaim (inline get-q-width
+		 get-q-l0-norm
+		 get-q-amplitudes
+		 get-q-pure-states))
 
 (defun get-q-width (qreg)
   (declare (type quantum-register qreg))
@@ -37,9 +40,9 @@
   (declare (type quantum-register qreg))
   (quantum-register-l0-norm qreg))
 
-(defun get-q-amplitude (qreg)
+(defun get-q-amplitudes (qreg)
   (declare (type quantum-register qreg))
-  (quantum-register-amplitude qreg))
+  (quantum-register-amplitudes qreg))
 
 (defun get-q-pure-states (qreg)
   (declare (type quantum-register qreg))
@@ -47,7 +50,7 @@
 
 (declaim (inline (setf get-q-width)
 		 (setf get-q-l0-norm)
-		 (setf get-q-amplitude)
+		 (setf get-q-amplitudes)
 		 (setf get-q-pure-states)))
 
 (defun (setf get-q-width) (width qreg)
@@ -60,10 +63,10 @@
 	   (type quantum-register qreg))
   (setf (quantum-register-l0-norm qreg) l0-norm))
 
-(defun (setf get-q-amplitude) (amplitude qreg)
-  (declare (type (vector amplitude) amplitude)
+(defun (setf get-q-amplitudes) (amplitudes qreg)
+  (declare (type (vector complex) amplitudes)
 	   (type quantum-register qreg))
-  (setf (quantum-register-amplitude qreg) amplitude))
+  (setf (quantum-register-amplitudes qreg) amplitudes))
 
 (defun (setf get-q-pure-states) (pstates qreg)
   (declare (type (vector uint) pstates)

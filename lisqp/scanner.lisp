@@ -33,7 +33,7 @@ a;;;; Lisqp scanner
 	     (set-syntax-from-char k k to-table from-table))
 	   (scan-table-extended-characters from-table))
   to-table)
-a
+
 (defun scan-table-syntax-type (char &optional (scan-table *scan-table*))
   (unless scan-table
     (setf scan-table *standard-scan-table*))

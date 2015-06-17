@@ -16,7 +16,15 @@
   "Controlled not gate."
   (declare (type integer control target)
 	   (type quantum-register qreg))
-  )
+  (let ((current-width (get-ec-width)))
+    (if current-width
+	(c-not-ec control target qreg)
+	(progn
+	  (loop for i from 0 to (1- get-q-l0-norm qreg) do
+	       (let ((state (aref (get-q-pure-states qreg) i)))
+		 (if (logtest state (ash 1 control))
+		     (setf state (boole boole-xor state (ash 1 target))))))
+	  (decohere qreg)))))
 
 (defun c-not-ec (control target qreg)
   "Controlled not gate with error correction."
@@ -42,7 +50,16 @@
   "Toffoli gate."
   (declare (type integer control1 control2 target)
 	   (type quantum-register qreg))
-  )
+  (let ((current-width (get-ec-width)))
+    (if current-width
+	(toffoli-ec control1 control2 target qreg)
+	(progn
+	  (loop for i from 0 to (1- (get-q-l0-norm qreg)) do
+	       (let ((state (aref (get-q-pure-states qreg) i)))
+		 (if (and (logtest state (ash 1 control1))
+			  (logtest state (ash 1 control2)))
+		     (setf state (boole boole-xor state (ash 1 target))))))
+	  (decohere qreg)))))
 
 (defun toffoli-ec (control1 control2 target qreg)
   "Toffoli gate with error correction."
@@ -90,7 +107,15 @@
   "Pauli x gate."
   (declare (type integer target)
 	   (type quantum-register qreg))
-  )
+  (let ((current-width (get-ec-width)))
+    (if current-width
+	(pauli-x-ec target qreg)
+	(progn
+	  (loop for i from 0 to (1- (get-q-l0-norm qreg)) do
+	       (let ((state (aref (get-q-pure-states qreg) i)))
+		 ;; Flip.
+		 (setf state (boole boole-xor state (ash 1 target)))))
+	  (decohere qreg)))))
 
 (defun pauli-x-ec (target qreg)
   "Pauli x gate with error correction."
@@ -110,13 +135,26 @@
   "Pauli y gate."
   (declare (type integer target)
 	   (type quantum-register qreg))
-  )
+  (let ((amplitudes (get-q-amplitudes qreg)))
+    (loop for i from 0 to (1- (get-q-l0-norm qreg)) do
+	 (let ((state (aref (get-q-pure-states qreg) i)))
+	   (setf state (boole boole-xor state (ash 1 target)))
+	   (if (logtest state (ash 1 target))
+	       ;; Flip and change phase.
+	       (setf (aref amplitudes i) (* (aref amplitudes i) #C(0 1)))
+	       (setf (aref amplitudes i) (* (aref amplitudes i) #C(0 -1))))))
+    (decohere qreg)))
 
 (defun pauli-z (target qreg)
   "Pauli z gate."
   (declare (type integer target)
 	   (type quantum-register qreg))
-  )
+  (let ((amplitudes (get-q-amplitudes qreg)))
+    (loop for i from 0 to (1- (get-q-l0-norm qreg)) do
+	 (let ((state (aref (get-q-pure-states qreg) i)))
+	   (if (logtest state (ash 1 target))
+	       (setf (aref amplitudes i) (- (aref amplitudes i))))))
+    (decohere qreg)))
 
 (defun pi/8 (target qreg)
   "Pi/8 gate."
