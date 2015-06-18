@@ -4,23 +4,30 @@
 
 (in-package :cl-quantum)
 
-(defun apply-gate (operator target qreg)
-  "Generic gate function."
+(defun apply-2-gate (operator target qreg)
+  "Generic 2 qubits gate function."
   (declare (type square-matrix operator)
-	   (type integer target)
+	   (type fixnum target)
 	   (type quantum-register qreg))
-  )
+  (let (())))
+
+(defun apply-4-gate (operator target qreg)
+  "Generic 4 qubits gate function."
+  (declare (type square-matrix operator)
+	   (type fixnum target)
+	   (type quantum-register qreg))
+  (let (())))
 
 ;;; APIs
 (defun c-not (control target qreg)
   "Controlled not gate."
-  (declare (type integer control target)
+  (declare (type fixnum control target)
 	   (type quantum-register qreg))
   (let ((current-width (get-ec-width)))
     (if current-width
 	(c-not-ec control target qreg)
 	(progn
-	  (loop for i from 0 to (1- get-q-l0-norm qreg) do
+	  (loop for i from 0 to (1- (get-q-l0-norm qreg)) do
 	       (let ((state (aref (get-q-pure-states qreg) i)))
 		 (if (logtest state (ash 1 control))
 		     (setf state (boole boole-xor state (ash 1 target))))))
@@ -28,7 +35,7 @@
 
 (defun c-not-ec (control target qreg)
   "Controlled not gate with error correction."
-  (declare (type integer control target)
+  (declare (type fixnum control target)
 	   (type quantum-register qreg))
   (let ((current-level (get-decoherence-level))
 	(current-width (get-ec-width)))
@@ -42,13 +49,15 @@
 
 (defun hadamard (target qreg)
   "Hadamard gate."
-  (declare (type integer target)
+  (declare (type fixnum target)
 	   (type quantum-register qreg))
-  )
+  (let* ((hadamard-list (list (list (sqrt 1/2) (sqrt 1/2)) (list (sqrt 1/2) (sqrt (- 1/2)))))
+	 (operator (make-array '(2 2) :initial-contents hadamard-list)))
+    (apply-2-gate operator target qreg)))
 
 (defun toffoli (control1 control2 target qreg)
   "Toffoli gate."
-  (declare (type integer control1 control2 target)
+  (declare (type fixnum control1 control2 target)
 	   (type quantum-register qreg))
   (let ((current-width (get-ec-width)))
     (if current-width
@@ -63,7 +72,7 @@
 
 (defun toffoli-ec (control1 control2 target qreg)
   "Toffoli gate with error correction."
-  (declare (type integer control1 control2 target)
+  (declare (type fixnum control1 control2 target)
 	   (type quantum-register qreg))
   (let* ((current-level (get-decoherence-level))
 	 (current-width (get-ec-width))
@@ -91,21 +100,27 @@
 	       (setf (svref states i) (boole boole-xor (svref states i) mask)))))
     (decohere qreg)))
 
+;;; Swap gate equals three consecutive c-not gates.
 (defun swap (control target qreg)
   "Swapping gate."
-  (declare (type integer control target)
+  (declare (type fixnum control target)
 	   (type quantum-register qreg))
   )
 
 (defun phase (target qreg)
   "Phase gate."
-  (declare (type integer target)
+  (declare (type fixnum target)
 	   (type quantum-register qreg))
-  )
+  (let ((amplitudes (get-q-amplitudes qreg)))
+    (loop for i from 0 to (1- (get-q-l0-norm qreg)) do
+	 (let ((state (aref (get-q-pure-states qreg) i)))
+	   (if (logtest state (ash 1 target))
+	       (setf (aref amplitudes i) (* (aref amplitudes i) #C(0 1))))))
+    (decohere qreg)))
 
 (defun pauli-x (target qreg)
   "Pauli x gate."
-  (declare (type integer target)
+  (declare (type fixnum target)
 	   (type quantum-register qreg))
   (let ((current-width (get-ec-width)))
     (if current-width
@@ -119,7 +134,7 @@
 
 (defun pauli-x-ec (target qreg)
   "Pauli x gate with error correction."
-  (declare (type integer target)
+  (declare (type fixnum target)
 	   (type quantum-register qreg))
   (let ((current-level (get-decoherence-level))
 	(current-width (get-ec-width)))
@@ -133,7 +148,7 @@
 
 (defun pauli-y (target qreg)
   "Pauli y gate."
-  (declare (type integer target)
+  (declare (type fixnum target)
 	   (type quantum-register qreg))
   (let ((amplitudes (get-q-amplitudes qreg)))
     (loop for i from 0 to (1- (get-q-l0-norm qreg)) do
@@ -147,7 +162,7 @@
 
 (defun pauli-z (target qreg)
   "Pauli z gate."
-  (declare (type integer target)
+  (declare (type fixnum target)
 	   (type quantum-register qreg))
   (let ((amplitudes (get-q-amplitudes qreg)))
     (loop for i from 0 to (1- (get-q-l0-norm qreg)) do
@@ -158,36 +173,56 @@
 
 (defun pi/8 (target qreg)
   "Pi/8 gate."
-  (declare (type integer target)
+  (declare (type fixnum target)
 	   (type quantum-register qreg))
-  )
+  (let ((amplitudes (get-q-amplitudes qreg)))
+    (loop for i from 0 to (1- (get-q-l0-norm qreg)) do
+	 (let ((state (aref (get-q-pure-states qreg) i)))
+	   (if (logtest state (ash 1 target))
+	       (setf (aref amplitudes i) (* (aref amplitudes i)
+					    (demoivre (cos (/ pi 4)) (sin (/ pi 4))))))))
+    (decohere qreg)))
 
 (defun c-pauli-z (control target qreg)
   "Controlled pauli z gate."
-  (declare (type integer control target)
+  (declare (type fixnum control target)
 	   (type quantum-register qreg))
-  )
+  (let ((amplitudes (get-q-amplitudes qreg)))
+    (loop for i from 0 to (1- (get-q-l0-norm qreg)) do
+	 (let ((state (aref (get-q-pure-states qreg) i)))
+	   (if (logtest state (ash 1 control))
+	       (if (logtest state (ash 1 target))
+		   (setf (aref amplitudes i) (- (aref amplitudes i)))))))
+    (decohere qreg)))
 
 (defun c-phase (control target qreg)
   "Controlled phase gate."
-  (declare (type integer control target)
+  (declare (type fixnum control target)
 	   (type quantum-register qreg))
-  )
+  (let ((amplitudes (get-q-amplitudes qreg)))
+    (loop for i from 0 to (1- (get-q-l0-norm qreg)) do
+	 (let ((state (aref (get-q-pure-states qreg) i)))
+	   (if (logtest state (ash 1 control))
+	       (if (logtest state (ash 1 target))
+		   (setf (aref amplitudes i) (* (aref amplitudes i) #C(0 1)))))))
+    (decohere qreg)))
 
 (defun inverse-c-phase (control target qreg)
   "Inverse controlled phase gate."
-  (declare (type integer control target)
+  (declare (type fixnum control target)
 	   (type quantum-register qreg))
   )
 
+;;; Fredkin is controlled-swap.
 (defun fredkin (control1 control2 target qreg)
   "Fredkin gate."
-  (declare (type integer control1 control2 target)
+  (declare (type fixnum control1 control2 target)
 	   (type quantum-register qreg))
   )
 
+;;; Measure will output classical values.
 (defun measure (target qreg)
   "Measure 'target' qubits in the quantum-register."
-  (declare (type integer target)
+  (declare (type fixnum target)
 	   (type quantum-register qreg))
   )

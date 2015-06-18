@@ -31,7 +31,31 @@
     :opcode-add
     :opcode-add-mod
     :opcode-times-mod
-    :opcode-expr-mod))
+    :opcode-expt-mod))
+
+(defparameter *opcode-args*
+  '(0
+    3
+    3
+    2
+    4
+    4
+    3
+    2
+    2
+    2
+    2
+    2
+    2
+    3
+    3
+    3
+    4
+    2
+    2
+    3
+    3
+    3))
 
 (defun quantum-opcodes (opcode &rest arguments)
   "Quantum opcodes functions."
@@ -70,5 +94,13 @@
 	 (fredkin (first arguments) (second arguments) (third arguments) (fourth arguments)))
 	((equal opcode :opcode-measure)
 	 (measure (first arguments) (second arguments)))
+	((equal opcode :opcode-add)
+	 (q-+ (first arguments) (second arguments)))
+	((equal opcode :opcode-add-mod)
+	 (q-+-mod (first arguments) (second arguments) (third arguments)))
+	((equal opcode :opcode-times-mod)
+	 (q-*-mod (first arguments) (second arguments) (third arguments)))
+	((equal opcode :opcode-expt-mod)
+	 (q-expt-mod (first arguments) (second arguments) (third arguments)))
 	(t
 	 (error "Invalid opcode"))))

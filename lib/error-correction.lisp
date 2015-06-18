@@ -19,7 +19,7 @@
 ;;; TODO: Make them with no side-effect.
 (defun ec-encode (width qreg)
   "Encode a quantum-register, support error correction."
-  (declare (type integer width)
+  (declare (type fixnum width)
 	   (type quantum-register qreg))
   (let ((current-level (get-decoherence-level))
 	(full-width (get-q-width qreg)))

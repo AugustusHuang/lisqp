@@ -35,6 +35,9 @@
 	   :c-phase
 	   :fredkin
 	   :measure
+	   :grover
+	   :oracle
+	   :shor
 	   :init-qubit
 	   :init-from-file
 	   :output-to-file))

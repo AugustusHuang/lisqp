@@ -3,3 +3,5 @@
 ;;;; Date: June 5, 2015
 
 (in-package :cl-quantum-emulator)
+
+(defvar *opcode-counter* 0)
