@@ -221,8 +221,13 @@
   )
 
 ;;; Measure will output classical values.
-(defun measure (target qreg)
-  "Measure 'target' qubits in the quantum-register."
+(defun measure (qreg)
+  "Measure all qubits in the quantum-register."
+  (declare (type quantum-register qreg))
+  )
+
+(defun measure-qubit (target qreg)
+  "Measure a qubit in the quantum-register."
   (declare (type fixnum target)
 	   (type quantum-register qreg))
   )

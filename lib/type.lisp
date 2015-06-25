@@ -5,7 +5,10 @@
 (in-package :general-utilities)
 
 (deftype uint ()
-  "Unsigned integer."
+  "Unsigned fixnum integer."
+  '(integer 0 most-positive-fixnum))
+
+(deftype uint-general ()
   '(integer 0 *))
 
 (deftype angle ()
@@ -22,15 +25,22 @@
 
 (defstruct quantum-register
   "Quantum register, with 'width' qubits and 'l0-norm' non-zero basis states."
-  (width 0 :type uint)
-  (l0-norm 0 :type uint)
+  (width 1 :type uint)
+  (l0-norm 1 :type uint)
   (amplitudes #(1) :type (vector complex))
   (pure-states #(0) :type (vector uint)))
+
+(defstruct sparse-vector
+  "Sparse vector in trivial CSR format."
+  (values (make-array 0) :type simple-array)
+  (indices (make-array 0 :element-type 'uint) :type simple-array)
+  (len 0))
 
 (declaim (inline get-q-width
 		 get-q-l0-norm
 		 get-q-amplitudes
-		 get-q-pure-states))
+		 get-q-pure-states
+		 aref-sparse-vector))
 
 (defun get-q-width (qreg)
   (declare (type quantum-register qreg))
@@ -48,10 +58,20 @@
   (declare (type quantum-register qreg))
   (quantum-register-pure-states qreg))
 
+(defun aref-sparse-vector (svec index)
+  "Aref function of a sparse vector."
+  (declare (type sparse-vector svec)
+	   (type fixnum index))
+  (loop for i from 0 to (1- (length (sparse-vector-indices svec))) do
+       (if (= index (aref (sparse-vector-indices svec) i))
+	   (return-from aref-sparse-vector (aref (sparse-vector-values svec) i))))
+  0)
+
 (declaim (inline (setf get-q-width)
 		 (setf get-q-l0-norm)
 		 (setf get-q-amplitudes)
-		 (setf get-q-pure-states)))
+		 (setf get-q-pure-states)
+		 (setf aref-sparse-vector)))
 
 (defun (setf get-q-width) (width qreg)
   (declare (type uint width)
@@ -73,6 +93,83 @@
 	   (type quantum-register qreg))
   (setf (quantum-register-pure-states qreg) pstates))
 
+(defun (setf aref-sparse-vector) (value svec index)
+  "(setf aref) function of a sparse vector."
+  (declare (type sparse-vector svec)
+	   (type fixnum index))
+  (loop for i from 0 to (1- (length (sparse-vector-indices svec))) do
+       (let ((ind (aref (sparse-vector-indices svec) i)))
+	 (if (<= index ind)
+	     ;; Just substitute it...
+	     (if (= index ind)
+		 (progn
+		   (setf (aref (sparse-vector-values svec) index) value)
+		   (return-from aref-sparse-vector))
+		 ;; The first time we meet a index greater than our goal.
+		 (let ((helper1 ())
+		       (helper2 ())
+		       (values-list (1d-array-to-list (sparse-vector-values svec)))
+		       (index-list (1d-array-to-list (sparse-vector-indices svec))))
+		   (loop for j from 0 to (- i 2) do
+			(push (pop values-list) helper1)
+			(push (pop index-list) helper2))
+
+		   (push value helper1)
+		   (push index helper2)
+
+		   (loop for j from 0 to (1- i) do
+			(push (pop helper1) values-list)
+			(push (pop helper2) index-list))
+		   (setf (sparse-vector-values svec) (list-to-array values-list 1)
+			 (sparse-vector-indices svec) (list-to-array index-list 1))))))))
+
+(defun make-qreg-with-vector (vec &key (start 0) (end (1- (length vec))))
+  "Make a quantum register with content of a vector."
+  (declare (type vector vec))
+  (let* ((width (1+ (- end start)))
+	 (qreg (make-quantum-register :width width))
+	 (l0 0)
+	 (amp-list ())
+	 (state-list ()))
+    (loop for i from start to end do
+	 (let ((item (svref vec i)))
+	   (if (/= item 0)
+	       (progn
+		 (incf l0)
+		 (push i state-list)
+		 (push item amp-list)))))
+    (setf (get-q-pure-states qreg) (make-array (list-dimensions state-list 1)
+					       :initial-contents (reverse state-list))
+	  (get-q-amplitudes qreg) (make-array (list-dimensions amp-list 1)
+					      :initial-contents (reverse amp-list))
+	  (get-q-l0-norm qreg) l0)
+    qreg))
+
+(defun make-qreg-with-sparse-vector (svec)
+  "Make a quantum register with content of a sparse vector."
+  (declare (type sparse-vector svec))
+  (make-quantum-register :width (sparse-vector-len svec)
+			 :l0-norm (length (sparse-vector-indices svec))
+			 :amplitudes (sparse-vector-values svec)
+			 :pure-states (sparse-vector-indices svec)))
+
+(defun make-sparse-vector-with-vector (vector)
+  "Make function of a sparse vector with a generic vector."
+  (declare (type vector vector))
+  (let ((len (length vector))
+	(values ())
+	(indices ()))
+    (loop for i from 0 to (1- len) do
+	 (let ((value (aref vector i)))
+	   (if (/= 0 value)
+	       (progn
+		 (push value values)
+		 (push i index)))))
+    (make-sparse-vector :values (list-to-array (reverse values) 1)
+			:indices (list-to-array (reverse indices) 1)
+			:len len)))
+
+;;; Matrix wrappers.
 (declaim (inline make-matrix make-square-matrix))
 (defun make-matrix (dimensions &key (element-type t) initial-element initial-contents adjustable fill-pointer displaced-to displaced-index-offset)
   (make-array dimensions element-type initial-element initial-contents adjustable fill-pointer displaced-to displaced-index-offset))
@@ -80,6 +177,7 @@
 (defun make-square-matrix (dimension &key (element-type t) initial-element initial-contents adjustable fill-pointer displaced-to displaced-index-offset)
   (make-matrix '(,dimension ,dimension) element-type initial-element initial-contents adjustable fill-pointer displaced-to displaced-index-offset))
 
+;;; Matrix predicates.
 (defun unitary-matrix-p (matrix)
   "Predicate of unitary matrix."
   (declare (type square-matrix matrix))

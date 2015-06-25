@@ -4,11 +4,6 @@
 
 (in-package :general-utilities)
 
-(defun map-vec (fn vector &key (start 0) end)
-  "Helper function of dovec."
-  (loop for i from start below (or end (length vector))
-       do (funcall fn (aref vector-var index))))
-
 (defun matrix-*-2 (matrix1 matrix2)
   "Helper of matrix-*."
   (declare (type matrix matrix1)
@@ -72,11 +67,9 @@
 		  symbols)
 	  body))
 
-(defmacro dovec ((var vector &key (start 0) end) &body body)
+(defmacro dovec ((var vector) &body body)
   "Vector version of 'doxxx' macros."
-  `(block nil
-     (map-vec #'(lambda (,var) ,@body)
-	      ,vector :start start :end end)))
+  `(map nil #'(lambda (,var) ,@body) ,vector))
 
 (defun normalised-random (supremum)
   "Get a random number between 0 to 1 (exclusive)."
@@ -216,12 +209,12 @@
     (values out det)))
 
 (defun matrix-determinant (matrix)
-  "Returns the determinant of a given matrix."
+  "Determinant of a given matrix."
   (declare (type matrix matrix))
   (second (multiple-value-list (matrix-invert matrix))))
 
 (defun inner-product (vector1 vector2)
-  "Returns the inner-product of two vectors."
+  "Inner-product of two vectors."
   (declare (type vector vector1)
 	   (type vector vector2))
   (let ((dim (array-dimension vector1 0))
@@ -232,8 +225,13 @@
 	 (incf result (* (svref vector1 i) (svref vector2 i))))
     result))
 
-(defun vec*matrix (vec matrix)
-  "Returns product of a vector and a matrix."
+(defun kronecker-product (vector1 vector2)
+  "Kronecker product of two general vectors."
+  (declare (type vector vector1 vector2))
+  (let (())))
+
+(defun vec-*-matrix (vec matrix)
+  "Product of a vector and a matrix."
   (declare (type vector vec)
 	   (type matrix matrix))
   (let* ((row (array-dimension matrix 0))
@@ -248,3 +246,23 @@
 
 (defun demoivre (angle)
   (complex (cos angle) (sin angle)))
+
+(defun list-dimensions (list depth)
+  "Count the dimension of a list."
+  (loop repeat depth
+       collect (length list)
+       do (setf list (car list))))
+
+(defun list-to-array (list depth)
+  "Make an array from a given list."
+  (make-array (list-dimensions list depth) :initial-contents list))
+
+(defun 1d-array-to-list (array)
+  "Make a list from an 1-dimensional array."
+  (loop for i below (array-dimension array 0) collect (aref array i)))
+
+(defun inverse-mod (n a)
+  "Inverse of a mod n."
+  (loop for i from 1 to (1- n) do
+       (if (= 1 (mod (* i a) n))
+	   (return-from inverse-mod i))))
