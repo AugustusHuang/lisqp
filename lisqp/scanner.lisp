@@ -1,4 +1,4 @@
-a;;;; Lisqp scanner
+;;;; Lisqp scanner
 ;;;; Author: Augustus Huang
 ;;;; Date: May 27, 2015
 
@@ -245,9 +245,6 @@ a;;;; Lisqp scanner
 	  (t
 	   nil))))
 
-;;; With reversible computations, it seems that there's no need to introduce
-;;; floating point numbers --- May 29, 2015, Augustus
-;;; Don't evaluate to themselves but make qubits!
 (defun scan-ratio (token)
   "Scan next token as it was a ratio number."
   (let ((negative-p nil)
@@ -280,6 +277,75 @@ a;;;; Lisqp scanner
 		 (setf in-denominator-p t))
 		(t
 		 (return-from scan-ratio)))))))))
+
+(defun scan-float (token)
+  "Scan a floating point number."
+  (let ((int 0)
+	(f 0.0)
+	(int-pass nil)
+	(float-pass nil)
+	(float-point-pass nil)
+	(expo #\F)
+	(exp-value 0)
+	;; Only multiply them to get the final result.
+	(plus-p 1)
+	(exp-plus-p 1)
+	(pos 0)
+	(digits "0123456789"))
+    (flet ((peek ()
+	     (when (< pos (length token))
+	       (char token pos)))
+	   (moveon ()
+	     (prog1 (char token pos)
+	       (incf pos))))
+      (case (peek)
+	(#\- (moveon)
+	     (setf plus-p -1))
+	(#\+ (moveon)))
+      (when (null (peek))
+	(return-from scan-float))
+      (loop
+	 (let ((weight (position (peek) digits)))
+	   (when (not weight)
+	     (return))
+	   (moveon)
+	   (setf int-pass t
+		 int (+ weight (* int 10)))))
+      (when (= #\. (peek))
+	(setf float-point-pass t)
+	(moveon)
+	(when (and (not (or (not int-pass)
+			    (find (peek) "eEfF")))
+		   (not (find (peek) digits)))
+	  (return-from scan-float))
+	(let ((first-decimal pos))
+	  (loop
+	     (when (not (find (peek) digits))
+	       (return))
+	     (setf int-pass t)
+	     (moveon))
+	  (dotimes (i (- pos first-decimal))
+	    (incf f (digit-p (char token (1- pos))))
+	    (setf f (/ f 10)))))
+      ;; How about exponent?
+      (when (find (peek) "eEfF")
+	(setf expo (moveon))
+	(case (peek)
+	  (#\- (moveon)
+	       (setf exp-plus-p -1))
+	  (#\+ (moveon)))
+	(when (or (not (find (peek) digits))
+		  (not int-pass))
+	  (return-from scan-float))
+	(loop
+	   (when (not (find (peek) digits))
+	     (return))
+	   (setf exp-value (+ (* exp-value 10)
+			      (digit-p (moveon))))))
+      ;; Then we are at the end.
+      (when (peek)
+	(return-from scan-float))
+      (* sign (+ int f) (expt 10.0 (* exp-plus-p exp-value))))))
 
 (defun scan-int (token)
   "Scan next token as it was an integer."
@@ -354,8 +420,9 @@ a;;;; Lisqp scanner
       ;; Return a symbol immediately if a package marker was seen.
       (seen-escape
        (intern token))
-      (t (or (read-integer token)
-	     (read-ratio token)
+      (t (or (scan-integer token)
+	     (scan-ratio token)
+	     (scan-float token)
              (intern token))))))
 
 (defun scan-left-parenthesis (stream ignore)
