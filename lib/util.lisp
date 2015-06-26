@@ -247,6 +247,12 @@
 (defun demoivre (angle)
   (complex (cos angle) (sin angle)))
 
+(defun complex-norm (complex)
+  (declare (type complex complex))
+  (let ((real (realpart complex))
+	(imag (imagpart complex)))
+    (+ (* real real) (* imag imag))))
+
 (defun list-dimensions (list depth)
   "Count the dimension of a list."
   (loop repeat depth

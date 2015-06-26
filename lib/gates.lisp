@@ -9,16 +9,66 @@
   (declare (type square-matrix operator)
 	   (type fixnum target)
 	   (type quantum-register qreg))
-  (let (())))
+  (let* ((l0 (get-q-l0-norm qreg))
+	 (width (get-q-width qreg))
+	 (states (get-q-pure-states qreg))
+	 (amps (get-q-amplitudes qreg))
+	 (sig (make-array l0 :element-type 'bit :initial-element 0)))
+    (block oloop
+      (loop for i from 0 to (1- l0) do
+	   (let* ((state (aref states i))
+		  (amp (aref amps i))
+		  (setp 0)
+		  (inv 0)
+		  (temp amp))
+	     (if (not (aref sig i))
+		 (let ((offset (boole boole-xor state (ash 1 target))))
+		   (setf setp (boole boole-and state (ash 1 target)))
+		   (if (>= offset 0)
+		       (setf inv offset))
+		   (if setp
+		       (setf amp (+ (* inv (aref operator 1 0))
+				    (* amp (aref operator 1 1))))
+		       (setf amp (+ (* inv (aref operator 0 1))
+				    (* amp (aref operator 0 0)))))
+		   (if (>= offset 0)
+		       (if setp
+			   (setf (aref amps offset) (+ (* inv (aref operator 0 0))
+						       (* amp (aref operator 0 1))))
+			   (setf (aref amps offset) (+ (* inv (aref operator 1 1))
+						       (* amp (aref operator 1 0)))))
+		       ;; Or we have to add a new pure state.
+		       (progn
+			 (if (or (and (= (aref operator 0 1) 0) setp)
+				 (and (= (aref operator 1 0) 0) setp))
+			     (return-from oloop nil))
+			 (let ((amps-new (adjust-array amps (1+ (length amps))))
+			       (states-new (adjust-array states (1+ (length states))))
+			   (setf (aref states-new l0)
+				 (boole boole-xor (ash 1 target) state))
+			   (if setp
+			       (setf (aref amps-new l0)
+				     (* temp (aref operator 0 1)))
+			       (setf (aref amps-new l0)
+				     (* temp (aref operator 1 0))))
+			   (setf amps amps-new
+				 states states-new)))))
+		 (if (>= setp 0)
+		     (setf (aref sig setp) 1))))))
+    (decoherence (make-quantum-register :width (max width l0)
+					:l0-norm l0
+					:amplitudes amps
+					:pure-states states))))
 
-(defun apply-4-gate (operator target qreg)
-  "Generic 4 qubits gate function."
-  (declare (type square-matrix operator)
-	   (type fixnum target)
-	   (type quantum-register qreg))
-  (let (())))
+;;; Maybe we need a general apply gate function...
+;;; 2n x 2n operator on n qubits.
+;(defun apply-4-gate (operator target1 target2 qreg)
+;  "Generic 4 qubits gate function."
+;  (declare (type square-matrix operator)
+;	   (type fixnum target1 target2)
+;	   (type quantum-register qreg))
+;  (let (())))
 
-;;; APIs
 (defun c-not (control target qreg)
   "Controlled not gate."
   (declare (type fixnum control target)
@@ -224,10 +274,81 @@
 (defun measure (qreg)
   "Measure all qubits in the quantum-register."
   (declare (type quantum-register qreg))
-  )
+  (let ((rand (normalised-random most-positive-fixnum))
+	(states (get-q-pure-states qreg))
+	(amps (get-q-amplitudes qreg))
+	(l0 (get-q-l0-norm qreg)))
+    (loop for i from 0 to (1- l0) do
+	 (decf rand (complex-norm (aref amps i)))
+	 (if (<= r 0)
+	     (return-from measure (aref states i))))
+    ;; There's something wrong... Since we have a quantum register with
+    ;; total probability less than one, due to lack of normalization or
+    ;; some rounding issue.
+    ;; TODO: signal a measure error instead.
+    (error "measurement failure")))
+
+(defun collapse (value target qreg)
+  "Collapse the state vector after measurement or partial trace operator."
+  (declare (type fixnum value target)
+	   (type quantum-register qreg))
+  (let* ((pos (ash 1 target))
+	 (norm 0)
+	 (l0 (get-q-l0-norm qreg))
+	 (states (get-q-pure-states qreg))
+	 (out (make-quantum-register :width (1- (get-q-width qreg)))))
+    (loop for i from 0 to (1- l0) do
+	 (let ((state (aref states i))
+	       (amp (aref (get-q-amplitudes qreg) i)))
+	   (if (or (and (logtest state pos) value)
+		   (and (not (logtest state pos) (not value))))
+	       (progn
+		 (incf norm (complex-norm amp))
+		 (incf l0)))))
+    (setf (get-q-l0-norm out) l0
+	  (get-q-amplitudes out) (make-array l0 :element-type 'complex
+					     :initial-element 0)
+	  (get-q-pure-states out) (make-array l0 :element-type 'uint
+					      :initial-element 0))
+    (loop for i from 0 to (1- l0) do
+	 (let ((state (aref states i))
+	       (amp (aref (get-q-amplitudes qreg) i)))
+	       (counter 0)
+	       (lcounter 0)
+	       (rcounter 0))
+	   (if (or (and (logtest state pos) value)
+		   (and (not (logtest state pos) (not value))))
+	       (progn
+		 (loop for k from 0 to (1- pos) do
+		      (incf rcounter (ash 1 k)))
+		 (setf rcounter (boole boole-and rcounter state))
+		 ;; TODO: Now we are in 32-bit content... make it compatible.
+		 (loop for k from 31 downto (1+ pos) do
+		      (incf lcounter (ash 1 k)))
+		 (setf lcounter (boole boole-and lcounter state)
+		       (aref (get-q-amplitudes out) counter) (/ amp (sqrt norm))
+		       (aref (get-q-pure-states out) counter)
+		       (boole boole-ior rcounter (ash lcounter -1)))
+		 (incf counter))))
+    out))
 
 (defun measure-qubit (target qreg)
   "Measure a qubit in the quantum-register."
   (declare (type fixnum target)
 	   (type quantum-register qreg))
-  )
+  (let ((pos (ash 1 target))
+	(prob 0)
+	(out 0)
+	(rand (normalised-random most-positive-fixnum))
+	(l0 (get-q-l0-norm qreg))
+	(states (get-q-pure-states qreg)))
+    (loop for i from 0 to (1- l0) do
+	 (let ((state (aref states i))
+	       (amp (aref (get-q-amplitudes qreg) i)))
+	   (if (not (logtest state pos))
+	       (incf prob (complex-norm amp)))))
+    (if (> rand prob)
+	(setf out 1))
+    ;; Or we reduce the state vector, and the state will collapse.
+    (setf qreg (collapse out target qreg))
+    out))
