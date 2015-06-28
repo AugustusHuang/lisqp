@@ -7,6 +7,12 @@
   (:use :cl)
   (:export :dovec
 	   :with-gensyms
+	   :make-matrix
+	   :make-square-matrix
+	   :unitary-matrix-p
+	   :identity-matrix-p
+	   :trace-zero-p
+	   :hermitian-p
 	   :matrix-transpose
 	   :matrix-conjugate
 	   :matrix-adjoint
@@ -14,12 +20,26 @@
 	   :matrix-+
 	   :matrix--
 	   :matrix-invert
-	   :matrix-determinant))
+	   :matrix-determinant
+	   :qubits
+	   :inner-product
+	   :kronecker-product
+	   :vec-*-matrix
+	   :demoivre
+	   :complex-norm
+	   :list-dimensions
+	   :list-to-array
+	   :1d-array-to-list
+	   :inverse-mod
+	   :make-qreg-with-vector
+	   :make-qreg-with-sparse-vector
+	   :make-sparse-vector-with-vector))
 
 (defpackage :cl-quantum
   (:nicknames :quantum :cl-qu)
   (:use :cl :general-utilities)
-  (:export :c-not
+  (:export :apply-2-gate
+	   :c-not
 	   :c-not-ec
 	   :hadamard
 	   :toffoli
@@ -35,20 +55,30 @@
 	   :c-phase
 	   :fredkin
 	   :measure
+	   :measure-qubit
 	   :grover
 	   :oracle
+	   :ec-encode
+	   :ec-decode
 	   :shor
 	   :init-from-file
-	   :output-to-file))
+	   :output-to-file
+	   :print-quantum-register
+	   :normalize-quantum-register
+	   :kronecker-quantum-register
+	   :qreg-to-vector
+	   :qreg-to-sparse-vector))
 
 (defpackage :cl-quantum-emulator
   (:nicknames :quantum-emulator :qemulator)
   (:use :cl :cl-quantum :general-utilities)
   (:export :emulator
-	   :q+
-	   :q+mod
-	   :q*mod
-	   :q-expr-mod))
+	   :q-+
+	   :q-+-mod
+	   :q-*-mod
+	   :q-expt-mod
+	   :qft
+	   :inverse-qft))
 
 (defpackage :cl-lisqp
   (:nicknames :lisqp)

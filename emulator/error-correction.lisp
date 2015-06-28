@@ -16,7 +16,6 @@
   "Get error correction protected width."
   *ec-width*)
 
-;;; TODO: Make them with no side-effect.
 (defun ec-encode (width qreg)
   "Encode a quantum-register, support error correction."
   (declare (type fixnum width)
