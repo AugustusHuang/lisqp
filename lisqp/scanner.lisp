@@ -4,12 +4,6 @@
 
 (in-package :cl-lisqp)
 
-;;; Scanner buffer
-(defvar *scan-buffer*)
-
-(defvar *next-to-read*)
-(defvar *next-to-write*)
-
 (defvar *scan-base* 10)
 
 (defstruct (scan-table
@@ -114,7 +108,7 @@
 		 (char-downcase c)
 		 (char-upcase c)))))
 
-;;; Scanner readtable
+;;; Scanner table
 (declaim (special *scan-table*)
 	 (type scan-table *scan-table*))
 ;;; There will be some differences between lisqp and lisp!
@@ -133,67 +127,19 @@
       (scan-table-syntax-type #\\ *scan-table*) :single-escape
       (scan-table-syntax-type #\| *scan-table*) :multiple-escape)
 
-(declaim (inline reset-scan-buffer))
-(defun reset-scan-buffer ()
-  "Empty scan-buffer, and reset next-to pointers."
-  (setf *next-to-read* 0
-	*next-to-write* 0))
-
-(declaim (inline reset-ntr))
-(defun reset-ntr ()
-  "Reset ntr pointer to 0."
-  (setf *next-to-read* 0))
-
-(declaim (inline ntr-read))
-(defun ntr-read ()
-  "Read character pointed by ntr."
-  (if (>= *next-to-read* *next-to-write*)
-      *eof-object*
-      (prog1
-	  (elt *scan-buffer* *next-to-read*)
-	(incf *next-to-read*))))
-
-(declaim (inline ntw-read))
-(defun ntw-read (char)
-  "Read character pointed by ntw."
-  (when (>= *next-to-write* *scan-buffer*)
-    (double-buffer))
-  (setf (elt *scan-buffer* *next-to-write*) char
-	*next-to-write* (1+ *next-to-write*)))
-
-(declaim (inline unscan))
-(defun unscan ()
-  "Puke a character."
-  (decf *next-to-read*))
-
-(declaim (inline double-buffer))
-(defun double-buffer ()
-  "Double the buffer size."
-  (let* ((bl (length *scan-buffer*))
-	 (new-bl (* bl 2))
-	 (new-buffer (make-string new-bl)))
-    (setf *scan-buffer* (replace new-buffer *scan-buffer*))))
-
 (declaim (inline change-base))
 (defun change-base (new-base)
   "Change the reading number base to 'new'."
   (setf *scan-base* new-base))
 
-(defmacro with-scan-buffer (() &body body)
-  `(let* ((*scan-buffer* (make-string 32))
-	  (*next-to-read* 0)
-	  (*next-to-write* 0))
-     ,@body))
-
-(declaim (inline scan-buffer2str))
-(defun scan-buffer2str ()
-  "Output scan-buffer in string format."
-  (subseq *scan-buffer* 0 *next-to-write*))
-
 (declaim (inline base-char-p))
 (defun base-char-p (char)
   (and (characterp char)
        (< (char-code char) 255)))
+
+(declaim (inline point-p))
+(defun point-p (char)
+  (eql char #\.))
 
 (declaim (inline plus-p))
 (defun plus-p (char)
@@ -208,13 +154,14 @@
   "Test if 'char' is a whitespace[2] character in 'scan-table."
   (eql (scan-table-syntax-type char scan-table) :whitespace))
 
-(declaim (inline invalidp))
-(defun invalidp (char &optional (scan-table *scan-table*))
+(declaim (inline invalid-p))
+(defun invalid-p (char &optional (scan-table *scan-table*))
   "Test if 'char' is an invalid character in 'scan-table'."
   (and (eql (scan-table-syntax-type char scan-table) nil)
        (or (member char '(#\Backspace #\Tab #\Newline #\Linefeed #\Page
 			  #\Return #\Space #\Rubout)))))
 
+(declaim (inline terminating-macro-p))
 (defun terminating-macro-p (char &optional (scan-table *scan-table*))
   (multiple-value-bind (fn terminatingp)
       (get-scan-macro-character char scan-table)
@@ -261,8 +208,8 @@
       (do ((offset start (1+ offset)))
 	  ((>= offset end)
 	   (if negative-p
-	       (- (/ numerator denominator))
-	       (/ numerator denominator)))
+	       (make-q-ratio (- (/ numerator denominator)))
+	       (make-q-ratio (/ numerator denominator))))
 	(let* ((point (char token offset))
 	       (digit (digit-p point :base 10)))
 	  (when (and (not digit)
@@ -311,7 +258,7 @@
 	   (moveon)
 	   (setf int-pass t
 		 int (+ weight (* int 10)))))
-      (when (= #\. (peek))
+      (when (point-p (peek))
 	(setf float-point-pass t)
 	(moveon)
 	(when (and (not (or (not int-pass)
@@ -345,7 +292,7 @@
       ;; Then we are at the end.
       (when (peek)
 	(return-from scan-float))
-      (* sign (+ int f) (expt 10.0 (* exp-plus-p exp-value))))))
+      (make-q-float (* sign (+ int f) (expt 10.0 (* exp-plus-p exp-value)))))))
 
 (defun scan-int (token)
   "Scan next token as it was an integer."
@@ -367,12 +314,11 @@
 	(let ((digit (digit-p (char token offset) :base scan-base)))
 	  (when (not digit)
 	    (return-from scan-int))
-	  (setf num (+ (* num scan-base) digit))))))))
+	  (setf num (+ (* num scan-base) digit)))))
+    (make-q-int num)))
 
-;;; FIXME: constructing
 (defun scan-token (stream first)
   "Scan a token from 'stream' with 'first' as the initial character."
-  ;; Maybe use with-scan-buffer.
   (let ((token (make-array 16 :element-type 'character
 			   :adjustable t
 			   :fill-pointer 0))
@@ -461,12 +407,54 @@
 
 (defun scan-character (stream sub c)
   "Scan a character."
-  )
+  (let ((c (read-char stream t nil t))
+	(i (peek-char nil stream nil nil t)))
+    (if (or (eql i nil)
+	    (get-scan-macro-character i)
+	    (whitespace[2]p i))
+	c
+	(let ((token (make-array 1 :element-type 'character :initial-element c
+				 :adjustable t :fill-pointer t)))
+	  (do ((z (read-char stream nil nil t) (read-char stream nil nil t)))
+	      ((or (eql z nil)
+		   (when (or (get-scan-macro-character z)
+			     (whitespace[2]p z))
+		     (unread-char z stream)
+		     t)))
+	    (let ((syntax (scan-table-syntax-type c)))
+	      (cond ((eql syntax :single-escape)
+		     (vector-push-extend (read-char stream t nil t) token))
+		    ((eql syntax :multiple-escape)
+		     (do ((y (read-char stream t nil t) (read-char stream t nil t)))
+			 ((multiple-escape-p y))
+		       (if (single-escape-p y)
+			   (vector-push-extend (read-char stream t nil t) token)
+			   (vector-push-extend y token))))
+		    (t
+		     (vector-push-extend (case-correct z) token)))))
+	  (let ((x (name-char token)))
+	    (when (not x)
+	      (error 'scanner-error
+		     :stream stream
+		     :format-control "Unrecognized character name ~S."
+		     :format-arguments (list token)))
+	    (make-q-char x))))))
 
-(defun scan-string (stream ignore)
-  "Scan a string."
+(defun scan-string (stream char)
+  "Scan a string terminated by 'char'."
   (declare (ignore ignore))
-  )
+  (do ((c (read-char stream t nil t) (read-char stream t nil t))
+       (str (make-array 16 :element-type 'character :adjustable t
+			:fill-pointer 0)))
+      ((eql c char) str)
+    (if (eql (scan-table-syntax-type c) :single-escape)
+	(vector-push-extend (read-char stream t nil t) str)
+	(vector-push-extend c str))))
+
+(defun scan-dispatch-char (stream first)
+  "Scan a dispatching macro character."
+  (let ((char (read-char stream t nil t)))
+    ))
 
 (defun scan-radix (stream sub c)
   "Scan a different based number."
@@ -490,21 +478,27 @@
 	      (not (realp (first num)))
 	      (not (realp (second num))))
       (error "Invalid complex number ~S" num))
-    (complex (first num) (second num))))
+    (make-q-complex (first num) (second num))))
 
-(defun scan-array (stream sub c)
+(defun scan-array (stream ignore c)
   "Scan an array."
-  )
-
-(defun scan-big-comment (stream sub c)
-  "Scan a big comment surrounded with '#|' and '|#'."
-  )
+  (declare (ignore ignore))
+  (let* ((array (read stream t nil t))
+	 (dim array)
+	 (dims (make-list c :initial-element 0)))
+    (dotimes (i c)
+      (let ((len (length dim)))
+	(setf (elt dims i) len)
+	(when (zerop len)
+	  (return))
+	(setf dim (elt dim 0))))
+    (make-q-array dims :initial-contents array)))
 
 (defun scan-intern (stream eof-error-p eof-value recursive-p)
   (loop (let ((c (read-char stream eof-error-p 'nil t)))
 	  (when (eql c 'nil)
 	    (return eof-value))
-	  (when (invalidp c)
+	  (when (invalid-p c)
 	    (error 'scanner-error :stream stream
 		   :format-control "Read invalid character ~S."
 		   :format-arguments (list c)))

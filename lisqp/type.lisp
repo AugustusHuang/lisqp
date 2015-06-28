@@ -17,7 +17,7 @@
     ;; (cons list sequence t)
     :q-cons
     ;; (float number t)
-    ;;:float
+    :q-float
     ;; (function t)
     :q-function
     ;; (integer rational number t)
@@ -68,6 +68,9 @@
   ())
 
 (defclass q-complex (q-number)
+  ())
+
+(defclass q-float (q-number)
   ())
 
 (defclass q-list (q-sequence)
