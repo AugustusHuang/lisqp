@@ -5,13 +5,22 @@
 (in-package :cl-quantum)
 
 (defun shor (number)
+  "Shor algorithm wrapper, will automatically restart if failed."
+  (block shor-loop
+    (loop
+       (shor-algorithm number))))
+
+(defun shor-algorithm (number)
   "Shor algorithm. Decomposite 'number' into factors."
   (let* ((w1 (qubits (* number number)))
 	 (w2 (qubits number))
 	 (width (+ w1 (* 3 w2) 2))
 	 (qreg (make-quantum-register :width w1))
 	 (rand (random number))
-	 (out 0))
+	 (out 0)
+	 (denom 0)
+	 (plus-one 0)
+	 (minus-one 0))
     (when (or (= rand 2)
 	      (> (gcd rand number) 1))
       (setf rand (random number)))
@@ -32,7 +41,26 @@
 	;; Failed, and how about run it again instead of inform the user?
 	(progn
 	  (format t "Try again.")
-	  (return-from shor 0))
+	  (go shor-loop)))
+    (setf denom (ash 1 width))
+    (format t "Output ~D (~F)." out (/ out denom))
+    (if (and (= 1 (mod denom 2))
+	     (< (* 2 denom) (ash 1 width)))
+	(setf denom (* 2 denom)))
+    (if (= 1 (mod denom 2))
 	(progn
-	  ))
-    ))
+	  (format t "Odd period. Try again.")
+	  (go shor-loop)))
+    (setf plus-one (gcd number (mod (+ 1 (expt rand (/ 2 q))) number))
+	  minus-one (gcd number (mod (- (expt rand (/ 2 q)) 1) number)))
+    (let ((candidate (max plus-one minus-one)))
+      (if (and (> candidate 1)
+	       (< candidate number))
+	  (progn
+	    (format t "~D = ~D * ~D" number candidate (/ number candidate))
+	    (return-from shor (values candidate (/ number candidate))))
+	  (progn
+	    (format t "Try again.")
+	    (go shor-loop))))
+    ;; Won't reach here.
+    (go shor-loop)))
