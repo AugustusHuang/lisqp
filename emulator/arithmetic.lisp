@@ -14,15 +14,10 @@
   (declare (type integer number1 number2))
   )
 
-(defun binary-q-+-draper (number1 number2)
-  "Binary helper function of quantum addition based on Draper's model."
-  (declare (type integer number1 number2))
-  )
-
 (defun binary-q-+ (number1 number2)
   "Binary general helper function of quantum addition."
   (declare (type integer number1 number2))
-  )
+  (binary-q-+-cdkm number1 number2))
 
 (defun binary-q-+-mod (number1 number2 mod)
   "Binary helper function of add-mod algorithm."

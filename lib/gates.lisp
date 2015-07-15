@@ -4,7 +4,7 @@
 
 (in-package :cl-quantum)
 
-(defun apply-2-gate (operator target qreg)
+(defun apply-2-gate (operator qreg target)
   "Generic 2 qubits gate function."
   (declare (type square-matrix operator)
 	   (type fixnum target)
@@ -55,19 +55,18 @@
 				 states states-new)))))
 		 (if (>= setp 0)
 		     (setf (aref sig setp) 1))))))
-    (decoherence (make-quantum-register :width (max width l0)
-					:l0-norm l0
-					:amplitudes amps
-					:pure-states states))))
+    (decohere (make-quantum-register :width (max width l0)
+				     :l0-norm l0
+				     :amplitudes amps
+				     :pure-states states)))))
 
 ;;; Maybe we need a general apply gate function...
 ;;; 2n x 2n operator on n qubits.
-;(defun apply-4-gate (operator target1 target2 qreg)
-;  "Generic 4 qubits gate function."
-;  (declare (type square-matrix operator)
-;	   (type fixnum target1 target2)
-;	   (type quantum-register qreg))
-;  (let (())))
+(defun apply-gate (operator qreg &rest targets)
+  "General gate-apply function."
+  (declare (type square-matrix operator)
+	   (type quantum-register qreg))
+  )
 
 (defun c-not (control target qreg)
   "Controlled not gate."
@@ -103,7 +102,7 @@
 	   (type quantum-register qreg))
   (let* ((hadamard-list (list (list (sqrt 1/2) (sqrt 1/2)) (list (sqrt 1/2) (sqrt (- 1/2)))))
 	 (operator (make-array '(2 2) :initial-contents hadamard-list)))
-    (apply-2-gate operator target qreg)))
+    (apply-2-gate operator qreg target)))
 
 (defun toffoli (control1 control2 target qreg)
   "Toffoli gate."
@@ -155,7 +154,10 @@
   "Swapping gate."
   (declare (type fixnum control target)
 	   (type quantum-register qreg))
-  )
+  (progn
+    (c-not control target qreg)
+    (c-not target control qreg)
+    (c-not control target qreg)))
 
 (defun phase (target qreg)
   "Phase gate."
@@ -261,14 +263,23 @@
   "Inverse controlled phase gate."
   (declare (type fixnum control target)
 	   (type quantum-register qreg))
-  )
+  (let ((amplitudes (get-q-amplitudes qreg)))
+    (loop for i from 0 to (1- (get-q-l0-norm qreg)) do
+	 (let ((state (aref (get-q-pure-states qreg) i)))
+	   (if (logtest state (ash 1 control))
+	       (if (logtest state (ash 1 target))
+		   (setf (aref amplitudes i) (* (aref amplitudes i) #C(0 -1)))))))
+    (decohere qreg)))
 
 ;;; Fredkin is controlled-swap.
 (defun fredkin (control1 control2 target qreg)
   "Fredkin gate."
   (declare (type fixnum control1 control2 target)
 	   (type quantum-register qreg))
-  )
+  (progn
+    (toffoli control1 control2 target qreg)
+    (toffoli control1 target control2 qreg)
+    (toffoli control1 control2 target qreg)))
 
 ;;; Measure will output classical values.
 (defun measure (qreg)

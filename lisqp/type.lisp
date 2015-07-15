@@ -47,58 +47,77 @@
 
 ;;; Implement type hierarchy, all those classic evaluation will be replaced
 ;;; by quantum register usage and evaluation.
+;;; Some of them are only informational classes, they don't provide any
+;;; implementation but present.
 (defclass q-t ())
 
-(defclass q-sequence (q-t)
-  ())
+;;; FIXME: Sequence should have no implementation?
+(defclass q-sequence (q-t) ())
 
+;;; Array will be actually vector and with dimensions information.
 (defclass q-array (q-sequence)
-  ())
+  ((qarray :type (vector (quantum-register)))
+   (qdim :type list)))
 
-(defclass q-vector (q-array)
-  ())
+;;; And so vector will be array, they are equal.
+(defclass q-vector (q-array) ())
 
-(defclass q-bit-vector (q-vector)
-  ())
+;;; Bit vector will be supported here?
+(defclass q-bit-vector (q-vector) ())
 
+;;; A char is a quantum register escaped or not.
 (defclass q-character (q-t)
-  ())
+  ((qchar :type quantum-register)
+   (qescaped :type boolean)))
 
+;;; A number contained in a quantum register. We view it as a general number.
+;;; So it will have no base or no counting system.
+;;; We can't tell the difference between int|001> and float|0.01>,
+;;; though they seem the same when viewed as a total quantum register.
 (defclass q-number (q-t)
-  ())
+  ((qnum :type quantum-register)))
 
+;;; Introducing the imaginary part, and complex numbers are present.
 (defclass q-complex (q-number)
-  ())
+  ((qimag :type quantum-register)))
 
+;;; Introducing the point, and floating point numbers are present.
 (defclass q-float (q-number)
-  ())
+  ((qpoint :type fixnum)))
 
+;;; List is different, it should have a tail pointer.
 (defclass q-list (q-sequence)
-  ())
+  ((qhead :type quantum-register)
+   (qtail :type q-list)))
 
-(defclass q-cons (q-list)
-  ())
+;;; FIXME: I don't know now.
+(defclass q-cons (q-list) ())
 
+;;; Ah a quantum function will be no different than a classic one.
 (defclass q-function (q-t)
-  ())
+  ((name :type string)
+   (args :type list)))
 
-(defclass q-rational (q-number)
-  ())
+;;; All we can store is rational...
+(defclass q-rational (q-number) ())
 
-(defclass q-integer (q-rational)
-  ())
+;;; Integer is the default type.
+(defclass q-integer (q-rational) ())
 
+;;; Classic symbols = quantum symbols.
 (defclass q-symbol (q-t)
-  ())
+  ((name :type string)
+   (value :type q-t)))
 
 (defclass q-null (q-symbol)
-  ())
+  ((value :type null)))
 
+;;; a = a/1
 (defclass q-ratio (q-rational)
-  ())
+  ((qdenom :type q-integer)))
 
 (defclass q-string (q-vector)
-  ())
+  ((qescaped :type boolean)))
 
 (defgeneric make-basic-type (type)
   (:documentation "Initialize a new basic type data structure."))
@@ -153,3 +172,12 @@
 
 (defmethod make-basic-type (type q-string)
   (%make-instance 'q-string))
+
+(defmethod dimensions (type q-array)
+  (slot-value q-array dimensions))
+
+(defmethod dimensions (type q-vector)
+  (slot-value q-vector length))
+
+(defmethod dimensions (type q-list)
+  )
