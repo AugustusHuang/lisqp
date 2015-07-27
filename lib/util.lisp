@@ -29,56 +29,71 @@
   "Helper of matrix-*."
   (declare (type matrix matrix1)
 	   (type matrix matrix2))
-  (let ((m1-row (first (array-dimensions matrix1)))
-	(m1-column (second (array-dimensions matrix1)))
-	(m2-row (first (array-dimensions matrix2)))
-	(m2-column (second (array-dimensions matrix2))))
-    (if (/= m1-column m2-row)
-	(error "size mismatch")
-	(let ((matrix3 (make-array `(,m1-row ,m2-column) :initial-element 0)))
-	  (loop for i from 0 to (- m1-row 1) do
-	       (loop for j from 0 to (- m2-column 1) do
-		    (setf (aref matrix3 i j)
-			  (loop for k from 0 to (- m1-column 1)
-			     sum (* (aref matrix1 i k)
-				    (aref matrix2 k j))))))
-	  matrix3))))
+  (assert (= (array-dimension matrix1 1)
+	     (array-dimension matrix2 0))
+	  (matrix1 matrix2)
+	  "Size mismatch, two matrices of size ~D-by-~D and ~D-by-~D."
+	  (array-dimension matrix1 0)
+	  (array-dimension matrix1 1)
+	  (array-dimension matrix2 0)
+	  (array-dimension matrix2 1))
+  (let* ((m1-row (first (array-dimensions matrix1)))
+	 (m1-column (second (array-dimensions matrix1)))
+	 (m2-column (second (array-dimensions matrix2)))
+	 (matrix3 (make-array `(,m1-row ,m2-column) :initial-element 0)))
+    (loop for i from 0 to (- m1-row 1) do
+	 (loop for j from 0 to (- m2-column 1) do
+	      (setf (aref matrix3 i j)
+		    (loop for k from 0 to (- m1-column 1)
+		       sum (* (aref matrix1 i k)
+			      (aref matrix2 k j))))))
+    matrix3))
 
 (defun matrix-+-2 (matrix1 matrix2)
   "Helper of matrix-+."
   (declare (type matrix matrix1)
 	   (type matrix matrix2))
-  (let ((m1-row (first (array-dimensions matrix1)))
-	(m1-column (second (array-dimensions matrix1)))
-	(m2-row (first (array-dimensions matrix2)))
-	(m2-column (second (array-dimensions matrix2))))
-    (if (or (/= m1-row m2-row)
-	    (/= m1-column m2-column))
-	(error "size mismatch")
-	(let ((matrix3 (make-array `(,m1-row ,m1-column) :initial-element 0)))
-	  (loop for i from 0 to (- m1-row 1) do
-	       (loop for j from 0 to (- m1-column 1) do
-		    (setf (aref matrix3 i j)
-			  (+ (aref matrix1 i j) (aref matrix2 i j)))))
-	  matrix3))))
+  (assert (and (= (array-dimension matrix1 0)
+		  (array-dimension matrix2 0))
+	       (= (array-dimension matrix1 1)
+		  (array-dimension matrix2 1)))
+	  (matrix1 matrix2)
+	  "Size mismatch, two matrices of size ~D-by-~D and ~D-by-~D."
+	  (array-dimension matrix1 0)
+	  (array-dimension matrix1 1)
+	  (array-dimension matrix2 0)
+	  (array-dimension matrix2 1))
+  (let* ((m1-row (first (array-dimensions matrix1)))
+	 (m1-column (second (array-dimensions matrix1)))
+	 (matrix3 (make-array `(,m1-row ,m1-column) :initial-element 0)))
+    (loop for i from 0 to (- m1-row 1) do
+	 (loop for j from 0 to (- m1-column 1) do
+	      (setf (aref matrix3 i j)
+		    (+ (aref matrix1 i j) (aref matrix2 i j)))))
+    matrix3))
 
 (defun matrix---2 (matrix1 matrix2)
   "Helper of matrix--."
   (declare (type matrix matrix1)
 	   (type matrix matrix2))
-  (let ((m1-row (first (array-dimensions matrix1)))
-	(m1-column (second (array-dimensions matrix1)))
-	(m2-row (first (array-dimensions matrix2)))
-	(m2-column (second (array-dimensions matrix2))))
-    (if (or (/= m1-row m2-row)
-	    (/= m1-column m2-column))
-	(error "size mismatch")
-	(let ((matrix3 (make-array `(,m1-row ,m1-column) :initial-element 0)))
-	  (loop for i from 0 to (- m1-row 1) do
-	       (loop for j from 0 to (- m1-column 1) do
-		    (setf (aref matrix3 i j)
-			  (- (aref matrix1 i j) (aref matrix2 i j)))))
-	  matrix3))))
+  (assert (and (= (array-dimension matrix1 0)
+		  (array-dimension matrix2 0))
+	       (= (array-dimension matrix1 1)
+		  (array-dimension matrix2 1)))
+	  (matrix1 matrix2)
+	  "Size mismatch, two matrices of size ~D-by-~D and ~D-by-~D."
+	  (array-dimension matrix1 0)
+	  (array-dimension matrix1 1)
+	  (array-dimension matrix2 0)
+	  (array-dimension matrix2 1))
+  (let* ((m1-row (first (array-dimensions matrix1)))
+	 (m1-column (second (array-dimensions matrix1)))
+	 (matrix3 (make-array `(,m1-row ,m1-column) :initial-element 0)))
+    (loop for i from 0 to (- m1-row 1) do
+	 (loop for j from 0 to (- m1-column 1) do
+	      (setf (aref matrix3 i j)
+		    (- (aref matrix1 i j) (aref matrix2 i j)))))
+    matrix3))
 
 ;;; APIs
 (defmacro with-gensyms (symbols body)
@@ -238,10 +253,14 @@
   "Inner-product of two vectors."
   (declare (type vector vector1)
 	   (type vector vector2))
+  (assert (= (array-dimension vector1 0)
+	     (array-dimension vector2 0))
+	  (vector1 vector2)
+	  "Size mismatch, two vectors of length ~D and ~D."
+	  (array-dimension vector1 0)
+	  (array-dimension vector2 0))
   (let ((dim (array-dimension vector1 0))
 	(result 0))
-    (if (not (= dim (array-dimension vector2 0)))
-	     (error "vectors are of different size"))
     (loop for i from 0 to (- dim 1) do
 	 (incf result (* (svref vector1 i) (svref vector2 i))))
     result))
@@ -255,11 +274,16 @@
   "Product of a vector and a matrix."
   (declare (type vector vec)
 	   (type matrix matrix))
+  (assert (= (array-dimension matrix 0)
+	     (array-dimension vec 0))
+	  (vec matrix)
+	  "Size mismatch, vector of length ~D and matrix of size ~D-by-~D."
+	  (array-dimension vec 0)
+	  (array-dimension matrix 0)
+	  (array-dimension matrix 1))
   (let* ((row (array-dimension matrix 0))
 	 (column (array-dimension matrix 1))
 	 (out (make-array '(,column) :initial-element 0)))
-    (if (not (= (array-dimension vec 0) row))
-	(error "vector and matrix size mismatch"))
     (loop for i from 0 to (- column 1) do
 	 (loop for j from 0 to (- row 1) do
 	      (incf (svref out i) (* (svref vec j) (aref matrix j i)))))

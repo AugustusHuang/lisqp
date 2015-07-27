@@ -25,8 +25,17 @@
 
 (in-package :cl-quantum-emulator)
 
+;;; Opcodes will be stored in a cons.
+;;; Example: '((opcode1 arg1 arg2) (opcode2 arg1) (opcode3))
+;;; And *opcode-counter* will be the index of the cons.
 (defvar *opcode-counter* 0)
-(defvar *current-q-registers* nil)
+
+;;; *current-q-registers* will contain a list of quantum registers
+;;; every quantum register is self-contained.
+(defvar *current-q-registers* (vector))
+
+;;; *opcode-list* will be the list of current running program opcodes.
+(defvar *opcode-list* nil)
 
 (defun opcode-forward (step)
   "Step forward in the opcode array."
@@ -37,6 +46,10 @@
   "Step backward in the opcode array."
   (declare (type fixnum step))
   (decf *opcode-counter* step))
+
+(defun get-nth-opcode (n)
+  "Get the nth opcode name in the current running program."
+  (car (nth n *opcode-list*)))
 
 (defun add-q-register (qreg)
   "Add a new quantum register to current list."

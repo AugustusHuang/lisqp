@@ -45,14 +45,14 @@
 	     (format stream "Wrong arguments number ~A."
 		     (argument-error-arguments condition)))))
 
-(define-condition arithmetic-error (error)
+(define-condition quantum-arithmetic-error (error)
   ((operator
-    :reader arithmetic-error-operator
+    :reader quantum-arithmetic-error-operator
     :initarg :operator)
    (operands
-    :reader arithmetic-error-operands
+    :reader quantum-arithmetic-error-operands
     :initarg :operands
     :initform nil)))
 
-(define-condition division-by-0 (arithmetic-error)
+(define-condition division-by-0-error (arithmetic-error)
   ())
