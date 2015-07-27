@@ -1,4 +1,4 @@
 # lisqp
-A quantum LISP-like programming language with quantum emulator.  
+A Common Lisp quantum library and quantum emulator.  
 
 Developing...
