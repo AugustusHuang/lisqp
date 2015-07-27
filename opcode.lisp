@@ -125,3 +125,52 @@
 	 (q-expt-mod (first arguments) (second arguments) (third arguments)))
 	(t
 	 (error "Invalid opcode"))))
+	 
+;;; Opcodes will be stored in a cons.
+;;; Example: '((opcode1 arg1 arg2) (opcode2 arg1) (opcode3))
+;;; And *opcode-counter* will be the index of the cons.
+(defvar *opcode-counter* 0)
+
+;;; *current-q-registers* will contain a list of quantum registers
+;;; every quantum register is self-contained.
+(defvar *current-q-registers* (vector))
+
+;;; *opcode-list* will be the list of current running program opcodes.
+(defvar *opcode-list* nil)
+
+(declare (inline opcode-forward))
+(defun opcode-forward (step)
+  "Step forward in the opcode array."
+  (declare (type fixnum step))
+  (incf *opcode-counter* step))
+
+(declare (inline opcode-backward))
+(defun opcode-backward (step)
+  "Step backward in the opcode array."
+  (declare (type fixnum step))
+  (decf *opcode-counter* step))
+
+(declare (inline get-nth-opcode))
+(defun get-nth-opcode (n)
+  "Get the nth opcode name in the current running program."
+  (declare (type fixnum n))
+  (car (nth n *opcode-list*)))
+
+(declare (inline add-q-register))
+(defun add-q-register (qreg)
+  "Add a new quantum register to current register list."
+  (declare (type quantum-register qreg))
+  (setf *current-q-registers* (append *current-q-registers* (list qreg))))
+
+(declare (inline remove-q-register))
+(defun remove-q-register (n)
+  "Remove a quantum register from the current register list."
+  (declare (type fixnum n))
+  (setf *current-q-registers* (remove (nth n *current-q-registers*)
+				      *current-q-registers*)))
+
+(defun get-nth-q-register (n)
+  "Get the nth quantum register in the current register list."
+  (declare (type fixnum n))
+  (print-quantum-register (nth n *current-q-registers*)))
+

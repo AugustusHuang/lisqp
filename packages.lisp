@@ -23,8 +23,8 @@
 ;;;; Packages
 ;;;; Date: May 22, 2015
 
-(defpackage :general-utilities
-  (:nicknames :general-util)
+(defpackage :cl-lisqp-utils
+  (:nicknames :lisqp-utils)
   (:use :cl)
   (:export :dovec
 	   :with-gensyms
@@ -58,7 +58,7 @@
 
 (defpackage :cl-quantum
   (:nicknames :quantum :cl-qu)
-  (:use :cl :general-utilities)
+  (:use :cl :cl-lisqp-utils)
   (:export :apply-2-gate
 	   :c-not
 	   :c-not-ec
@@ -91,23 +91,17 @@
 	   :qreg-to-sparse-vector))
 
 (defpackage :cl-quantum-emulator
-  (:nicknames :quantum-emulator :qemulator)
-  (:use :cl :cl-quantum :general-utilities)
-  (:export :emulator
-	   :q-+
+  (:nicknames :quantum-emulator :cl-qem)
+  (:use :cl :cl-quantum :cl-lisqp-utils)
+  (:export :q-+
 	   :q-+-mod
 	   :q-*-mod
 	   :q-expt-mod
 	   :qft
-	   :inverse-qft))
-
-(defpackage :cl-lisqp
-  (:nicknames :lisqp)
-  (:use :cl :cl-quantum :cl-quantum-emulator :general-utilities)
-  (:export :scan
-	   :back-end
-	   :top-level
-	   :%swap
-	   :%grover-algorithm
-	   :%shor-algorithm
-	   :%linear-system))
+	   :inverse-qft
+	   :opcode-forward
+	   :opcode-backward
+	   :get-nth-opcode
+	   :add-q-register
+	   :remove-q-register
+	   :get-nth-q-register))
