@@ -20,43 +20,7 @@
 ;;;; OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 ;;;; SOFTWARE.
 
-;;;; Quantum emulator error handlers
-;;;; Date: May 29, 2015
+;;;; Different classical types in quantum register representation
+;;;; Date: July 27, 2015
 
-(in-package :cl-quantum-emulator)
-
-(define-condition emulator-error (error)
-  ()
-  (:report "Quantum emulator error."))
-
-(define-condition opcode-error (emulator-error)
-  ((opcode-name
-    :reader opcode-error-opcode-name
-    :initarg :opcode-name)
-   (opcode-args
-    :reader opcode-error-opcode-args
-    :initarg :opcode-args)
-  (:report (lambda (condition stream)
-	     (format stream "Invalid opcode ~A with arguments ~A."
-		     (opcode-error-opcode-name condition)
-		     (opcode-error-opcode-args condition))))))
-
-(define-condition argument-error (emulator-error)
-  ((arguments
-    :reader argument-error-arguments
-    :initarg :arguments))
-  (:report (lambda (condition stream)
-	     (format stream "Wrong arguments number ~A."
-		     (argument-error-arguments condition)))))
-
-(define-condition quantum-arithmetic-error (error)
-  ((operator
-    :reader quantum-arithmetic-error-operator
-    :initarg :operator)
-   (operands
-    :reader quantum-arithmetic-error-operands
-    :initarg :operands
-    :initform nil)))
-
-(define-condition division-by-0-error (arithmetic-error)
-  ())
+(in-package :cl-quantum)

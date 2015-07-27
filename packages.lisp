@@ -88,7 +88,8 @@
 	   :normalize-quantum-register
 	   :kronecker-quantum-register
 	   :qreg-to-vector
-	   :qreg-to-sparse-vector))
+	   :qreg-to-sparse-vector
+	   :build-q))
 
 (defpackage :cl-quantum-emulator
   (:nicknames :quantum-emulator :cl-qem)

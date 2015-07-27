@@ -32,7 +32,7 @@
 	   (type quantum-register qreg))
   (assert (= 2 (array-dimension operator 0))
 	  (operator qreg target)
-	  "Operator of size ~D-by-~D, not 2."
+	  "Operator of size ~D-by-~D, not 2-by-2."
 	  (array-dimension operator 0)
 	  (array-dimension operator 1))
   (let* ((l0 (get-q-l0-norm qreg))
