@@ -25,6 +25,22 @@
 
 (in-package :cl-quantum-emulator)
 
+(defun make-1-to-n-vector (n)
+  "Helper function, make a vector from 1 to N."
+  (let ((out (make-array n :initial-element 0)))
+    (loop for i from 0 to (1- n) do
+	 (setf (aref out i) (1+ i)))
+    out))
+
+;;; This is a 'BIGNUM' in quantum register sense, we use this to achieve
+;;; trivial multiplication and expt (we don't expect big input now!)
+;;; Pick arguments randomly... 2^32 will be enough?
+(defparameter *bignum-register*
+  (make-quantum-register :width 64
+			 :l0-norm 32
+			 :amplitudes (make-array 32 :initial-element #C(1 0))
+			 :pure-states (make-1-to-n-vector 32)))
+
 (defun %-+ (qreg1 qreg2)
   "Binary helper function of add algorithm."
   (declare (type quantum-register qreg1 qreg2))

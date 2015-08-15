@@ -23,13 +23,22 @@
 
 ;;;; Packages
 
+(in-package :cl-user)
+
 (defpackage :cl-lisqp-utils
   (:nicknames :lisqp-utils)
   (:use :cl)
-  (:export :dovec
-	   :with-gensyms
-	   :make-matrix
-	   :make-square-matrix
+  (:export :quantum-register
+	   :make-quantum-register
+	   :quantum-register-p
+	   :get-q-l0-norm
+	   :get-q-width
+	   :get-q-amplitudes
+	   :get-q-pure-states
+	   :sparse-vector
+	   :make-sparse-vector
+	   :sparse-vector-p
+	   :aref-sparse-vector
 	   :unitary-matrix-p
 	   :identity-matrix-p
 	   :trace-zero-p
@@ -48,10 +57,8 @@
 	   :vec-*-matrix
 	   :demoivre
 	   :complex-norm
-	   :list-dimensions
-	   :list-to-array
-	   :1d-array-to-list
 	   :inverse-mod
+	   :normalised-random
 	   :make-qreg-with-vector
 	   :make-qreg-with-sparse-vector
 	   :make-sparse-vector-with-vector))
@@ -86,8 +93,7 @@
 	   :normalize-quantum-register
 	   :kronecker-quantum-register
 	   :qreg-to-vector
-	   :qreg-to-sparse-vector
-	   :build-q))
+	   :qreg-to-sparse-vector))
 
 (defpackage :cl-quantum-emulator
   (:nicknames :quantum-emulator :cl-qem)

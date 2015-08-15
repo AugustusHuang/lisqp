@@ -160,11 +160,11 @@
   (incf *opcode-pointer* step))
 
 (declaim (inline opcode-pointer-backward))
-(defun opcode-stack-backward (step)
+(defun opcode-pointer-backward (step)
   "Update opcode stack pointer backward."
   (declare (type fixnum step))
   (if (<= step *opcode-pointer*)
-      (decf *opcode-stack-counter* step)
+      (decf *opcode-pointer* step)
       (error 'opcode-pointer-error :step step :current *opcode-pointer*)))
 
 (declaim (inline add-q-register))

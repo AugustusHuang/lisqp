@@ -23,7 +23,7 @@
 
 ;;;; Utilities
 
-(in-package :cl-lisqp-utilities)
+(in-package :cl-lisqp-utils)
 
 ;;; Since our matrix won't be too big?
 (defun matrix-*-2 (matrix1 matrix2)

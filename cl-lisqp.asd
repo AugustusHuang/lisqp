@@ -35,6 +35,7 @@
     :lib
     :components
     ((:cl-source-file "util" :depends-on ("../packages"))
+     (:cl-source-file "error" :depends-on ("../packages"))
      (:cl-source-file "type" :depends-on ("../packages" "util"))
      (:cl-source-file "decohere" :depends-on ("../packages" "util" "type"))
      (:cl-source-file "gates"

@@ -23,7 +23,7 @@
 
 ;;;; Generic useful type information
 
-(in-package :cl-lisqp-util)
+(in-package :cl-lisqp-utils)
 
 (deftype uint ()
   "Unsigned fixnum integer."
@@ -87,19 +87,15 @@
 		 (setf aref-sparse-vector)))
 
 (defun (setf get-q-width) (width qreg)
-  (declare (type uint width))
   (setf (quantum-register-width qreg) width))
 
 (defun (setf get-q-l0-norm) (l0-norm qreg)
-  (declare (type uint l0-norm))
   (setf (quantum-register-l0-norm qreg) l0-norm))
 
 (defun (setf get-q-amplitudes) (amplitudes qreg)
-  (declare (type (vector complex) amplitudes))
   (setf (quantum-register-amplitudes qreg) amplitudes))
 
 (defun (setf get-q-pure-states) (pstates qreg)
-  (declare (type (vector uint) pstates))
   (setf (quantum-register-pure-states qreg) pstates))
 
 (defun list-dimensions (list depth)

@@ -74,4 +74,4 @@
     (make-quantum-register :width width
 			   :l0-norm l0
 			   :amplitudes new-amp
-			   :pure-states (get-q-pure-states qreg)))))
+			   :pure-states (get-q-pure-states qreg))))

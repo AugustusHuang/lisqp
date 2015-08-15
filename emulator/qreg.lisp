@@ -71,25 +71,56 @@
 (defgeneric binary-q-expt-mod (num1 num2 mod)
   (:documentation "Generic binary quantum expt-mod function."))
 
+;;; There are three levels of functions: quantum library level,
+;;; quantum emulator level and abstracted class level. Here we are on the 3rd.
 (defmethod binary-q-+ ((num1 quantum-integer) (num2 quantum-integer))
-  )
+  ;; Directly apply QE level add function.
+  (make-instance 'quantum-integer :int (%-+ (int num1) (int num2))))
 
 (defmethod binary-q-+ ((num1 quantum-ratio) (num2 quantum-ratio))
-  )
+  ;; A/B + C/D = (A*D+B*C)/B*D
+  (make-instance 'quantum-ratio
+		 :numerator (%-+ (%-*-mod (numerator num1)
+					  (denominator num2)
+					  *bignum-register*)
+				 (%-*-mod (denominator num1)
+					  (numerator num2)
+					  *bignum-register*))
+		 :denominator (%-*-mod (denominator num1)
+				       (denominator num2)
+				       ;; Choose a big modulus.
+				       *bignum-register*)))
 
+;;; Functions lack: INTEGER-PART.
 (defmethod binary-q-+ ((num1 quantum-float) (num2 quantum-float))
-  )
+  ;; Add like integer, then move point around.
+  (make-instance 'quantum-float
+		 :float
+		 :point))
 
 (defmethod binary-q-+ ((num1 quantum-integer) (num2 quantum-ratio))
-  )
+  ;; A/1+B/C = (AC+B)/C
+  (make-instance 'quantum-ratio
+		 :numerator (%-+ (%-*-mod (int num1)
+					  (denominator num2)
+					  *bignum-register*)
+				 (numerator num2))
+		 :denominator (denominator num2)))
 
 (defmethod binary-q-+ ((num1 quantum-integer) (num2 quantum-float))
   )
 
 (defmethod binary-q-+ ((num1 quantum-ratio) (num2 quantum-integer))
-  )
+  ;; A/B+C/1 = (A+BC)/B
+  (make-instance 'quantum-ratio
+		 :numerator (%-+ (numerator num1)
+				 (%-*-mod (denominator num1)
+					  (int num2)
+					  *bignum-register*))
+		 :denominator (denominator num1)))
 
 (defmethod binary-q-+ ((num1 quantum-ratio) (num2 quantum-float))
+  ;; Consider a float as a generalized ratio.
   )
 
 (defmethod binary-q-+ ((num1 quantum-float) (num2 quantum-integer))
@@ -100,10 +131,14 @@
 
 ;; Modulus can only be of type QUANTUM-INTEGER. So do arguments.
 (defmethod binary-q-+-mod ((num1 quantum-integer) (num2 quantum-integer) (mod quantum-integer))
-  )
+  (make-instance 'quantum-integer :int (%-+-mod (int num1) (int num2)
+						*bignum-register*)))
 
 (defmethod binary-q-*-mod ((num1 quantum-integer) (num2 quantum-integer) (mod quantum-integer))
-  )
+  (make-instance 'quantum-integer :int (%-*-mod (int num1) (int num2)
+						*bignum-register*)))
 
 (defmethod binary-q-expt-mod ((num1 quantum-integer) (num2 quantum-integer) (mod quantum-integer))
-  )
+  (make-instance 'quantum-integer :int (%-expt-mod (int num1) (int num2)
+						   *bignum-register*)))
+

@@ -35,19 +35,19 @@
     :initarg :opcode-name)
    (opcode-args
     :reader opcode-error-opcode-args
-    :initarg :opcode-args)
+    :initarg :opcode-args))
   (:report (lambda (condition stream)
 	     (format stream "Invalid opcode ~A with arguments ~A."
 		     (opcode-error-opcode-name condition)
-		     (opcode-error-opcode-args condition))))))
+		     (opcode-error-opcode-args condition)))))
 
-(define-condition opcode-pointer-error (error)
+(define-condition opcode-pointer-error (emulator-error)
   ((step
     :reader opcode-pointer-error-step
-    :initarg step)
+    :initarg :step)
    (current
     :reader opcode-pointer-error-current
-    :initarg current))
+    :initarg :current))
   (:report (lambda (condition stream)
 	     (format stream "Try to move opcode pointer ~D steps backward but opcode pointer now is ~D."
 		     (opcode-pointer-error-step condition)
@@ -61,14 +61,18 @@
 	     (format stream "Wrong arguments number ~A."
 		     (argument-error-arguments condition)))))
 
-(define-condition quantum-arithmetic-error (error)
+(define-condition quantum-arithmetic-error (emulator-error)
   ((operator
     :reader quantum-arithmetic-error-operator
     :initarg :operator)
    (operands
     :reader quantum-arithmetic-error-operands
-    :initarg :operands
-    :initform nil)))
+    :initarg :operands))
+  (:report (lambda (condition stream)
+	     (format stream "Arithmetic error ~A with operands ~A."
+		     (quantum-arithmetic-error-operator condition)
+		     (quantum-arithmetic-error-operands condition)))))
 
 (define-condition division-by-0-error (arithmetic-error)
-  ())
+  ()
+  (:report "Division by 0."))
