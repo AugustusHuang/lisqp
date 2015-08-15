@@ -2,26 +2,26 @@
 
 ;;;; Copyright (c) 2015 Huang Xuxing
 
-;;;; Permission is hereby granted, free of charge, to any person obtaining a copy
-;;;; of this software and associated documentation files (the "Software"), to deal
-;;;; in the Software without restriction, including without limitation the rights
-;;;; to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-;;;; copies of the Software, and to permit persons to whom the Software is
-;;;; furnished to do so, subject to the following conditions:
+;;;; Permission is hereby granted, free of charge, to any person obtaining
+;;;; a copy of this software and associated documentation files
+;;;; (the "Software"), to deal in the Software without restriction,
+;;;; including without limitation the rights to use, copy, modify, merge,
+;;;; publish, distribute, sublicense, and/or sell copies of the Software,
+;;;; and to permit persons to whom the Software is furnished to do so,
+;;;; subject to the following conditions:
 
-;;;; The above copyright notice and this permission notice shall be included in all
-;;;; copies or substantial portions of the Software.
+;;;; The above copyright notice and this permission notice shall be included
+;;;; in all copies or substantial portions of the Software.
 
 ;;;; THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 ;;;; IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-;;;; FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-;;;; AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-;;;; LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-;;;; OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-;;;; SOFTWARE.
+;;;; FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+;;;; THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+;;;; LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+;;;; ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+;;;; OTHER DEALINGS IN THE SOFTWARE.
 
 ;;;; Opcode manipulation and functions.
-;;;; Date: May 25, 2015
 
 (in-package :cl-quantum-emulator)
 
@@ -132,62 +132,48 @@
 	 ;; opcode-error condition.
 	 (error 'opcode-error :opcode-name opcode :opcode-args arguments))))
 	 
-;;; Opcodes will be stored in a list.
-;;; Example: '(((opcode1 arg1 arg2) (opcode2 arg1)) ((opcode3)))
+;;; Opcodes will be stored in an array. It will be an array of type
+;;; (SIMPLE-VECTOR x).
+;;; Example: #((OPCODE-1 ARG1 ARG2) '(OPCODE-2) '(OPCODE-3 ARG1))
 ;;; Now the stack counter is 3 and the frame counter is 2.
-(defvar *opcode-stack-counter* 0)
-(defvar *opcode-frame-counter* 0)
+(defvar *opcode-vector* (make-array 1 :adjustable t :fill-pointer 0))
+
+;;; Point to the current opcode.
+(defvar *opcode-pointer* 0)
 
 ;;; *current-q-registers* will contain a list of quantum registers
-;;; every quantum register is self-contained.
+;;; every quantum register is self-contained and individual.
 (defvar *current-q-registers* (vector))
 
-;;; *opcode-list* will be the list of current running program opcodes.
-(defvar *opcode-list* nil)
+(declaim (inline opcode-push))
+(defun opcode-push (opcode)
+  (vector-push-extend opcode *opcode-vector*))
 
-(declare (inline opcode-stack-forward))
-(defun opcode-stack-forward (step)
+(declaim (inline opcode-pop))
+(defun opcode-pop (opcode)
+  (vector-pop *opcode-vector*))
+
+(declaim (inline opcode-pointer-forward))
+(defun opcode-pointer-forward (step)
   "Update opcode stack pointer forward."
   (declare (type fixnum step))
-  (incf *opcode-stack-counter* step))
+  (incf *opcode-pointer* step))
 
-(declare (inline opcode-stack-backward))
+(declaim (inline opcode-pointer-backward))
 (defun opcode-stack-backward (step)
   "Update opcode stack pointer backward."
   (declare (type fixnum step))
-  (decf *opcode-stack-counter* step))
+  (if (<= step *opcode-pointer*)
+      (decf *opcode-stack-counter* step)
+      (error 'opcode-pointer-error :step step :current *opcode-pointer*)))
 
-(declare (inline opcode-frame-forward))
-(defun opcode-frame-forward (step)
-  "Update opcode frame pointer forward."
-  (declare (type fixnum step))
-  (incf *opcode-frame-counter* step))
-
-(declare (inline opcode-frame-backward))
-(defun opcode-frame-backward (step)
-  "Update opcode frame pointer backward."
-  (declare (type fixnum step))
-  (decf *opcode-frame-counter* step))
-
-(declare (inline get-nth-opcode-stack))
-(defun get-nth-opcode-stack (n)
-  "Get the nth opcode in the current opcode list."
-  (declare (type fixnum n))
-  (caar (nth n *opcode-list*)))
-
-(declare (inline get-nth-opcode-frame))
-(defun get-nth-opcode-frame (n)
-  "Get the nth opcode frame in the current opcode list."
-  (declare (type fixnum n))
-  (nth n *opcode-list*))
-
-(declare (inline add-q-register))
+(declaim (inline add-q-register))
 (defun add-q-register (qreg)
   "Add a new quantum register to current register list."
   (declare (type quantum-register qreg))
   (setf *current-q-registers* (append *current-q-registers* (list qreg))))
 
-(declare (inline remove-q-register))
+(declaim (inline remove-q-register))
 (defun remove-q-register (n)
   "Remove a quantum register from the current register list."
   (declare (type fixnum n))
@@ -199,13 +185,21 @@
   (declare (type fixnum n))
   (print-quantum-register (nth n *current-q-registers*)))
 
-(declare (inline set-push-opcodes))
+(declaim (inline set-push-opcodes))
 (defun set-push-opcodes (state)
   "Set function of *push-opcodes*."
   (declare (type boolean state))
   (setf *push-opcodes* state))
 
-(declare (inline get-push-opcodes))
+(declaim (inline get-push-opcodes))
 (defun get-push-opcodes ()
   "Get function of *push-opcodes*."
   *push-opcodes*)
+
+;;; FIXME: How about adding frames? If we can add frames then we can tell the
+;;; difference among different quantum gate graphs.
+(defun input-opcodes ()
+  )
+
+(defun output-opcodes ()
+  )

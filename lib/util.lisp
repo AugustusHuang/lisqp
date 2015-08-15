@@ -2,29 +2,30 @@
 
 ;;;; Copyright (c) 2015 Huang Xuxing
 
-;;;; Permission is hereby granted, free of charge, to any person obtaining a copy
-;;;; of this software and associated documentation files (the "Software"), to deal
-;;;; in the Software without restriction, including without limitation the rights
-;;;; to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-;;;; copies of the Software, and to permit persons to whom the Software is
-;;;; furnished to do so, subject to the following conditions:
+;;;; Permission is hereby granted, free of charge, to any person obtaining
+;;;; a copy of this software and associated documentation files
+;;;; (the "Software"), to deal in the Software without restriction,
+;;;; including without limitation the rights to use, copy, modify, merge,
+;;;; publish, distribute, sublicense, and/or sell copies of the Software,
+;;;; and to permit persons to whom the Software is furnished to do so,
+;;;; subject to the following conditions:
 
-;;;; The above copyright notice and this permission notice shall be included in all
-;;;; copies or substantial portions of the Software.
+;;;; The above copyright notice and this permission notice shall be included
+;;;; in all copies or substantial portions of the Software.
 
 ;;;; THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 ;;;; IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-;;;; FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-;;;; AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-;;;; LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-;;;; OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-;;;; SOFTWARE.
+;;;; FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+;;;; THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+;;;; LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+;;;; ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+;;;; OTHER DEALINGS IN THE SOFTWARE.
 
 ;;;; Utilities
-;;;; Date: May 22, 2015
 
-(in-package :general-utilities)
+(in-package :cl-lisqp-utilities)
 
+;;; Since our matrix won't be too big?
 (defun matrix-*-2 (matrix1 matrix2)
   "Helper of matrix-*."
   (declare (type matrix matrix1)
@@ -259,7 +260,7 @@
 	  "Size mismatch, two vectors of length ~D and ~D."
 	  (array-dimension vector1 0)
 	  (array-dimension vector2 0))
-  (let ((dim (array-dimension vector1 0))
+  (let ((dim (length vector1))
 	(result 0))
     (loop for i from 0 to (- dim 1) do
 	 (incf result (* (svref vector1 i) (svref vector2 i))))
@@ -268,7 +269,15 @@
 (defun kronecker-product (vector1 vector2)
   "Kronecker product of two general vectors."
   (declare (type vector vector1 vector2))
-  (let (())))
+  (let ((len1 (length vector1))
+	(len2 (length vector2)))
+    (let* ((len (* len1 len2))
+	   (out (make-array len :initial-element 0)))
+      (loop for i from 0 to (1- len1) do
+	   (loop for j from 0 to (1- len2) do
+		(setf (aref out (+ j (* i len2)))
+		      (* (aref vector1 i) (aref vector2 j)))))
+      out)))
 
 (defun vec-*-matrix (vec matrix)
   "Product of a vector and a matrix."
