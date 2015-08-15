@@ -27,14 +27,9 @@
 
 (defun apply-2-gate (operator qreg target)
   "Generic 2 qubits gate function."
-  (declare (type square-matrix operator)
+  (declare (type (square-matrix 2) operator)
 	   (type fixnum target)
 	   (type quantum-register qreg))
-  (assert (= 2 (array-dimension operator 0))
-	  (operator qreg target)
-	  "Operator of size ~D-by-~D, not 2-by-2."
-	  (array-dimension operator 0)
-	  (array-dimension operator 1))
   (let* ((l0 (get-q-l0-norm qreg))
 	 (width (get-q-width qreg))
 	 (states (get-q-pure-states qreg))
@@ -86,13 +81,8 @@
 				     :amplitudes amps
 				     :pure-states states)))))
 
-;;; Maybe we need a general apply gate function...
+;;; TODO: Maybe we need a general apply gate function...
 ;;; 2n x 2n operator on n qubits.
-(defun apply-gate (operator qreg &rest targets)
-  "General gate-apply function."
-  (declare (type square-matrix operator)
-	   (type quantum-register qreg))
-  )
 
 (defun c-not (control target qreg)
   "Controlled not gate."
@@ -149,8 +139,7 @@
   "Toffoli gate with error correction."
   (declare (type fixnum control1 control2 target)
 	   (type quantum-register qreg))
-  (let* ((current-level (get-decoherence-level))
-	 (current-width (get-ec-width))
+  (let* ((current-width (get-ec-width))
 	 (mask (+ (ash 1 target)
 		  (ash 1 (+ target current-width))
 		  (ash 1 (+ target (* 2 current-width)))))
@@ -185,7 +174,8 @@
     (c-not target control qreg)
     (c-not control target qreg)))
 
-(defun phase (target qreg)
+;;; PHASE is dirty, use PHASE-GATE instead.
+(defun phase-gate (target qreg)
   "Phase gate."
   (declare (type fixnum target)
 	   (type quantum-register qreg))
@@ -258,7 +248,7 @@
 	 (let ((state (aref (get-q-pure-states qreg) i)))
 	   (if (logtest state (ash 1 target))
 	       (setf (aref amplitudes i) (* (aref amplitudes i)
-					    (demoivre (cos (/ pi 4)) (sin (/ pi 4))))))))
+					    (demoivre (complex (cos (/ pi 4)) (sin (/ pi 4)))))))))
     (decohere qreg)))
 
 (defun c-pauli-z (control target qreg)
@@ -317,7 +307,7 @@
 	(l0 (get-q-l0-norm qreg)))
     (loop for i from 0 to (1- l0) do
 	 (decf rand (complex-norm (aref amps i)))
-	 (if (<= r 0)
+	 (if (<= rand 0)
 	     (return-from measure (aref states i))))
     ;; There's something wrong... Since we have a quantum register with
     ;; total probability less than one, due to lack of normalization or
@@ -325,6 +315,7 @@
     ;; TODO: signal a measure error instead.
     (error "measurement failure")))
 
+;;; Compile failed...
 (defun collapse (value target qreg)
   "Collapse the state vector after measurement or partial trace operator."
   (declare (type fixnum value target)
@@ -332,29 +323,30 @@
   (let* ((pos (ash 1 target))
 	 (norm 0)
 	 (l0 (get-q-l0-norm qreg))
+	 (new-l0 0)
 	 (states (get-q-pure-states qreg))
 	 (out (make-quantum-register :width (1- (get-q-width qreg)))))
     (loop for i from 0 to (1- l0) do
 	 (let ((state (aref states i))
 	       (amp (aref (get-q-amplitudes qreg) i)))
 	   (if (or (and (logtest state pos) value)
-		   (and (not (logtest state pos) (not value))))
+		   (and (not (logtest state pos)) (not value)))
 	       (progn
 		 (incf norm (complex-norm amp))
-		 (incf l0)))))
-    (setf (get-q-l0-norm out) l0
-	  (get-q-amplitudes out) (make-array l0 :element-type 'complex
-					     :initial-element 0)
-	  (get-q-pure-states out) (make-array l0 :element-type 'uint
+		 (incf new-l0)))))
+    (setf (get-q-l0-norm out) new-l0
+	  (get-q-amplitudes out) (make-array new-l0 :element-type 'complex
+					     :initial-element #C(1 0))
+	  (get-q-pure-states out) (make-array new-l0 :element-type 'uint
 					      :initial-element 0))
     (loop for i from 0 to (1- l0) do
 	 (let ((state (aref states i))
-	       (amp (aref (get-q-amplitudes qreg) i)))
+	       (amp (aref (get-q-amplitudes qreg) i))
 	       (counter 0)
 	       (lcounter 0)
 	       (rcounter 0))
 	   (if (or (and (logtest state pos) value)
-		   (and (not (logtest state pos) (not value))))
+		   (and (not (logtest state pos)) (not value)))
 	       (progn
 		 (loop for k from 0 to (1- pos) do
 		      (incf rcounter (ash 1 k)))
@@ -363,10 +355,11 @@
 		 (loop for k from 31 downto (1+ pos) do
 		      (incf lcounter (ash 1 k)))
 		 (setf lcounter (boole boole-and lcounter state)
-		       (aref (get-q-amplitudes out) counter) (/ amp (sqrt norm))
+		       (aref (get-q-amplitudes out) counter)
+		       (/ amp (sqrt norm))
 		       (aref (get-q-pure-states out) counter)
 		       (boole boole-ior rcounter (ash lcounter -1)))
-		 (incf counter))))
+		 (incf counter)))))
     out))
 
 (defun measure-qubit (target qreg)

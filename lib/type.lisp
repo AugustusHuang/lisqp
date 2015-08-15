@@ -27,14 +27,10 @@
 
 (deftype uint ()
   "Unsigned fixnum integer."
-  '(integer 0 most-positive-fixnum))
+  `(integer 0 ,most-positive-fixnum))
 
 (deftype uint-general ()
   '(integer 0 *))
-
-(deftype angle ()
-  "Bloch sphere angle."
-  '(real #.pi #.(- pi)))
 
 (deftype matrix (&optional type x y)
   "General 2D array."
@@ -48,8 +44,8 @@
   "Quantum register, with 'width' qubits and 'l0-norm' non-zero basis states."
   (width 1 :type uint)
   (l0-norm 1 :type uint)
-  (amplitudes #(1) :type (vector complex))
-  (pure-states #(0) :type (vector uint)))
+  (amplitudes #(#C(1 0)) :type (vector complex))
+  (pure-states #(0) :type vector))
 
 (defstruct sparse-vector
   "Sparse vector in trivial CSR format."
@@ -106,11 +102,36 @@
   (declare (type (vector uint) pstates))
   (setf (quantum-register-pure-states qreg) pstates))
 
+(defun list-dimensions (list depth)
+  "List counterpart of function ARRAY-DIMENSIONS."
+  (loop repeat depth
+     collect (length list)
+     do (setf list (car list))))
+
+(defun list-to-array (list depth)
+  "Make an array from a given list."
+  (make-array (list-dimensions list depth) :initial-contents list))
+
+(defun 1d-array-to-list (array)
+  "Make a list from an 1-dimensional array."
+  (loop for i below (array-dimension array 0) collect (aref array i)))
+
+(defun remove-by-position (index list)
+  "REMOVE function by index."
+  (loop for i in list
+     for j from 1 unless (= j (1+ index)) collect i))
+
+(defun insert (list index value)
+  "Insert VALUE before the INDEXth element in the list."
+  (let ((dis (1- index)))
+    (push value (cdr (nthcdr dis list)))
+    list))
+
 (defun (setf aref-sparse-vector) (value svec index)
   "(SETF AREF) function of a sparse vector."
   (declare (type sparse-vector svec)
 	   (type fixnum index))
-  (let ((index-array (sparse-vector-index svec))
+  (let ((index-array (sparse-vector-indices svec))
 	(values (sparse-vector-values svec))
 	(len (sparse-vector-len svec))
 	(helper-list1 ())
@@ -139,7 +160,7 @@
 			       (remove-by-position ind (1d-array-to-list index-array))
 			       (sparse-vector-values svec)
 			       (list-to-array helper-list1 1)
-			       (sparse-vector-index svec)
+			       (sparse-vector-indices svec)
 			       (list-to-array helper-list2 1))
 			 (return-from aref-sparse-vector value)))
 		   ;; The first time we meet a index greater than our goal.
@@ -152,7 +173,7 @@
 			       (insert (1d-array-to-list index-array) i index)
 			       (sparse-vector-values svec)
 			       (list-to-array helper-list1 1)
-			       (sparse-vector-index svec)
+			       (sparse-vector-indices svec)
 			       (list-to-array helper-list2 1))
 			 (return-from aref-sparse-vector value))
 		       ;; Since this is the first time index >= our place,
@@ -162,7 +183,7 @@
     (setf helper-list1 (append (1d-array-to-list values) (list value))
 	  helper-list2 (append (1d-array-to-list index-array) (list index))
 	  (sparse-vector-values svec) (list-to-array helper-list1 1)
-	  (sparse-vector-index svec) (list-to-array helper-list2 1))
+	  (sparse-vector-indices svec) (list-to-array helper-list2 1))
     value))
 
 (defun make-qreg-with-vector (vec &key (start 0) (end (1- (length vec))))
@@ -206,50 +227,7 @@
 	   (if (/= 0 value)
 	       (progn
 		 (push value values)
-		 (push i index)))))
+		 (push i indices)))))
     (make-sparse-vector :values (list-to-array (reverse values) 1)
 			:indices (list-to-array (reverse indices) 1)
 			:len len)))
-
-;;; Matrix wrappers.
-(declaim (inline make-matrix make-square-matrix))
-(defun make-matrix (dimensions &key (element-type t) initial-element initial-contents adjustable fill-pointer displaced-to displaced-index-offset)
-  (make-array dimensions element-type initial-element initial-contents adjustable fill-pointer displaced-to displaced-index-offset))
-
-(defun make-square-matrix (dimension &key (element-type t) initial-element initial-contents adjustable fill-pointer displaced-to displaced-index-offset)
-  (make-matrix '(,dimension ,dimension) element-type initial-element initial-contents adjustable fill-pointer displaced-to displaced-index-offset))
-
-;;; Matrix predicates.
-(defun unitary-matrix-p (matrix)
-  "Predicate of unitary matrix."
-  (declare (type square-matrix matrix))
-  (if (identity-matrix-p (matrix-* (matrix-adjoint matrix) matrix))
-      t
-      nil))
-
-(defun identity-matrix-p (matrix)
-  "Predicate of identity matrix."
-  (declare (type square-matrix matrix))
-  (let ((row (array-dimension matrix 0)))
-    (loop for i from 0 to (- row 1) do
-	 (if (/= (aref matrix i i) 1)
-	     (return-from identity-matrix-p nil)))
-    t))
-
-(defun trace-zero-p (matrix)
-  "Predicate of zero trace matrix."
-  (declare (type square-matrix matrix))
-  (let ((row (array-dimension matrix 0))
-	(sum 0))
-    (loop for i from 0 to (- row 1) do
-	 (incf sum (aref matrix i i)))
-    (if (= 0 sum)
-	t
-	nil)))
-
-(defun hermitian-p (matrix)
-  "Predicate of Hermitian matrix."
-  (declare (type square-matrix matrix))
-  (if (= (matrix-adjoint matrix) matrix)
-      t
-      nil))

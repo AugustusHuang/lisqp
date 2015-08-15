@@ -82,7 +82,7 @@
 	       (c-not i (+ i decode-width) qreg))))
     (loop for i from 1 to decode-width do
 	 (let ((a (measure decode-width qreg))
-	       (b (measure (- (* 2 (decode-width)) i) qreg)))
+	       (b (measure (- (* 2 decode-width) i) qreg)))
 	   (if (and (= a 1)
 		    (= b 1)
 		    (< (- i 1) width))

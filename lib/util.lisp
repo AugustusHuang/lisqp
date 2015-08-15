@@ -96,14 +96,6 @@
 		    (- (aref matrix1 i j) (aref matrix2 i j)))))
     matrix3))
 
-;;; APIs
-(defmacro with-gensyms (symbols body)
-  "Replace given symbols with gensyms."
-  (sublis (mapcar #'(lambda (sym)
-		      (cons sym (gensym (string sym))))
-		  symbols)
-	  body))
-
 (defmacro dovec ((var vector) &body body)
   "Vector version of 'doxxx' macros."
   `(map nil #'(lambda (,var) ,@body) ,vector))
@@ -129,7 +121,7 @@
   (declare (type matrix matrix))
   (let* ((row (first (array-dimensions matrix)))
 	 (column (second (array-dimensions matrix)))
-	 (out (make-array '(,row ,column) :initial-element 0)))
+	 (out (make-array `(,row ,column) :initial-element 0)))
     (loop for i from 0 to (- row 1) do
 	 (loop for j from 0 to (- column 1) do
 	      (setf (aref out i j)
@@ -139,7 +131,7 @@
 (defun matrix-adjoint (matrix)
   "Returns the adjoint of a given matrix."
   (declare (type matrix matrix))
-  (funcall matrix-conjugate (funcall matrix-transpose matrix)))
+  (funcall #'matrix-conjugate (funcall #'matrix-transpose matrix)))
 
 (defun matrix-* (matrix1 &rest more-matrices)
   "Returns product of matrices, from left to right."
@@ -292,7 +284,7 @@
 	  (array-dimension matrix 1))
   (let* ((row (array-dimension matrix 0))
 	 (column (array-dimension matrix 1))
-	 (out (make-array '(,column) :initial-element 0)))
+	 (out (make-array column :initial-element 0)))
     (loop for i from 0 to (- column 1) do
 	 (loop for j from 0 to (- row 1) do
 	      (incf (svref out i) (* (svref vec j) (aref matrix j i)))))
@@ -307,22 +299,49 @@
 	(imag (imagpart complex)))
     (+ (* real real) (* imag imag))))
 
-(defun list-dimensions (list depth)
-  "Count the dimension of a list."
-  (loop repeat depth
-       collect (length list)
-       do (setf list (car list))))
-
-(defun list-to-array (list depth)
-  "Make an array from a given list."
-  (make-array (list-dimensions list depth) :initial-contents list))
-
-(defun 1d-array-to-list (array)
-  "Make a list from an 1-dimensional array."
-  (loop for i below (array-dimension array 0) collect (aref array i)))
-
 (defun inverse-mod (n a)
   "Inverse of a mod n."
   (loop for i from 1 to (1- n) do
        (if (= 1 (mod (* i a) n))
 	   (return-from inverse-mod i))))
+
+;;; Matrix predicates.
+(defun unitary-matrix-p (matrix)
+  "Predicate of unitary matrix."
+  (declare (type square-matrix matrix))
+  (if (identity-matrix-p (matrix-* (matrix-adjoint matrix) matrix))
+      t
+      nil))
+
+(defun identity-matrix-p (matrix)
+  "Predicate of identity matrix."
+  (declare (type square-matrix matrix))
+  (let ((row (array-dimension matrix 0)))
+    (loop for i from 0 to (- row 1) do
+	 (if (/= (aref matrix i i) 1)
+	     (return-from identity-matrix-p nil)))
+    t))
+
+(defun trace-zero-p (matrix)
+  "Predicate of zero trace matrix."
+  (declare (type square-matrix matrix))
+  (let ((row (array-dimension matrix 0))
+	(sum 0))
+    (loop for i from 0 to (- row 1) do
+	 (incf sum (aref matrix i i)))
+    (if (= 0 sum)
+	t
+	nil)))
+
+(defun hermitian-p (matrix)
+  "Predicate of Hermitian matrix."
+  (declare (type square-matrix matrix))
+  (flet ((matrix-= (m1 m2)
+	   (let ((row (array-dimension m1 0))
+		 (col (array-dimension m1 1)))
+	     (loop for i from 0 to (1- row) do
+		  (loop for j from 0 to (1- col) do
+		       (if (/= (aref m1 i j) (aref m2 i j))
+			   (return-from matrix-= nil))))
+	     t)))
+    (matrix-= (matrix-adjoint matrix) matrix)))
