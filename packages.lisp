@@ -97,7 +97,11 @@
 
 (defpackage :cl-quantum-emulator
   (:nicknames :quantum-emulator :cl-qem)
-  (:use :cl :cl-quantum :cl-lisqp-utils)
+  (:use :cl
+	:cl-quantum
+	:cl-lisqp-utils
+	:lispbuilder-lexer
+	:lispbuilder-yacc)
   (:export :quantum-integer
 	   :quantum-ratio
 	   :quantum-float
